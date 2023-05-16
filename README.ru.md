@@ -1,2 +1,2 @@
 # maFileTool
-[English Version](README.en.md) | [Русская Версия](README.ru.md)
+[English Version](README.md) | [Русская Версия](README.ru.md)
