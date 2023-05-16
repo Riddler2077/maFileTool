@@ -8,7 +8,7 @@
 
 Возможности:
 - <div>Автоматическое решение капчи через сервис rucaptcha/2capthca -  <a href="https://rucaptcha.com/?from=947328" target="_blank">регистрация</a></div>
-- <a target="_blank" rel="noopener noreferrer" href="https://github.com/mojombo/github-flavored-markdown/issues/28" data-hovercard-type="issue" data-hovercard-url="/mojombo/github-flavored-markdown/issues/28/hovercard"><img src="https://github.com/mojombo/github-flavored-markdown/issues/28" alt="test" style="max-width: 100%;"></a>
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/mojombo/github-flavored-markdown/issues/28" data-hovercard-type="issue" data-hovercard-url="/mojombo/github-flavored-markdown/issues/28/hovercard"><img src="https://github.com/mojombo/github-flavored-markdown/issues/28" alt="test" style="max-width: 100%;"></a>
 - Использование 5 смс сервисов:
 - GetSms - регистрация
 - GiveSms
