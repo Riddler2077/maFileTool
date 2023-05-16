@@ -1,4 +1,4 @@
-# maFileTool
+![Icon](https://github.com/Riddler2077/ASFGenerator/blob/master/Logo.png?raw=true) # maFileTool
 [English Version](README.md) | [Русская Версия](README.ru.md)
 
 Зачем это нужно:
