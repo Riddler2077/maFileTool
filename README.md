@@ -28,8 +28,10 @@ To configure it, you need to specify your data in the Settings.json file.
 All the settings are intuitive, but just in case, I have described everything below.
 
 - Mode - Mode of operation. Accepts one of two values TXT or EXCEL
+ 
  EXCEL: In the folder with the program is Steam.xlsx . Just fill in your data (login, password, email, emailpassword) according to the available formatting.
  The phone number and recovery code will be recorded in the appropriate cells.
+ 
  TXT: In the folder with the program is Steam.txt . The data format is login:password:email:emailpassword. For correct operation, passwords must not contain the colon character ':'.
  After successful linking, the data from the account will be saved in result.log
  The data in result.log is saved regardless of the selected mode!
@@ -47,6 +49,7 @@ All the settings are intuitive, but just in case, I have described everything be
 - SmsActivateBaseUrl - SmsActivate domain. Change it only if it doesn't work.
 - VakSmsBaseUrl - the VakSms domain. Change it only if it doesn't work.
 - Priority - a system for prioritizing the use of SMS services.
+
 For example, ["GetSms", "GiveSms", "OnlineSim", "SmsActivate", "VakSms"] is set by default - this means that GetSms will be used first, GiveSms second, etc.
 You can put for example ["OnlineSim", "SmsActivate", "VakSms"] - OnlineSim will be used first, SmsActivate second, etc. The removed services will not be used.
 The transition to the next service occurs if the numbers or balance have run out.
