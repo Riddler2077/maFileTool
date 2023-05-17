@@ -5,6 +5,7 @@ using maFileTool.Services.Api;
 using Newtonsoft.Json;
 using OfficeOpenXml.Style;
 using System;
+using System.CodeDom;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -23,11 +24,30 @@ namespace maFileTool
         static bool b = false;
         static void Main(string[] args)
         {
-            if(!System.IO.File.Exists(String.Format("{0}\\Settings.json", Environment.CurrentDirectory))) new Utils().SaveSettings();
+            if (!System.IO.File.Exists(String.Format("{0}\\Settings.json", Environment.CurrentDirectory)))
+            {
+                new Utils().SaveSettings();
+                Console.WriteLine("Please specify the settings in Settings.json");
+                Console.ReadLine();
+                return;
+            }
 
-            accounts = new Excel().ReadFromExcel(steam);
-            accounts.RemoveAll(t => String.IsNullOrEmpty(t.Login) || t.Login == "Логин" || !string.IsNullOrEmpty(t.Phone));
-            Console.WriteLine("Loaded - {0} accounts", accounts.Count());
+            string mode = Worker.settings.Mode;
+
+            switch (mode)
+            {
+                case "EXCEL":
+                    accounts = new Excel().ReadFromExcel(steam);
+                    accounts.RemoveAll(t => String.IsNullOrEmpty(t.Login) || t.Login == "Логин" || t.Login == "Login" || !string.IsNullOrEmpty(t.Phone));
+                    Console.WriteLine("Loaded - {0} accounts. Press enter to start.", accounts.Count());
+                    Console.ReadLine();
+                    break;
+                case "TXT":
+                    break;
+                default:
+                    Console.WriteLine("Please specify the Mode in Settings.json");
+                    return;
+            }
             
             foreach (var account in accounts) 
             {

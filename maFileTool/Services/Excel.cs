@@ -48,7 +48,7 @@ namespace maFileTool.Services
 
         public void WriteRowToExcel(string path, Account account, int row) 
         {
-            row = (row + 2);//Оступ под шапку
+            row = (row + 1);//Оступ под шапку
 
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             FileInfo filePath = new FileInfo(path);
@@ -56,8 +56,8 @@ namespace maFileTool.Services
             {
                 var ws = excelPack.Workbook.Worksheets[0];
 
-                ws.Cells[row, 5].Value = account.Phone;
-                ws.Cells[row, 6].Value = account.RevocationCode;
+                ws.Cells[row, 6].Value = account.Phone;
+                ws.Cells[row, 7].Value = account.RevocationCode;
 
                 excelPack.Save();
             }

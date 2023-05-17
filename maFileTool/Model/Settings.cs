@@ -2,7 +2,7 @@
 {
     public class Settings
     {
-        public string Mode { get; set; } = string.Empty;
+        public string Mode { get; set; } = "TXT";
         public string BindingTimeout { get; set; } = string.Empty;
         public string SMSTimeout { get; set; } = string.Empty;
         public string CaptchaApiKey { get; set; } = string.Empty;
@@ -18,7 +18,7 @@
         public string VakSmsBaseUrl { get; set; } = "vak-sms.com";
         public string[] Priority { get; set; } = new string[] { "GetSms", "GiveSms", "OnlineSim", "SmsActivate", "VakSms" };
         public string MailServer { get; set; } = string.Empty;
-        public string MailPort { get; set; } = string.Empty;
-        public string MailType { get; set; } = string.Empty;
+        public string MailPort { get; set; } = "993";
+        public string MailType { get; set; } = "IMAP";
     }
 }
