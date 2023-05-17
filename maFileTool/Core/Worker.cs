@@ -239,6 +239,8 @@ namespace maFileTool.Core
                     {
                         if(settings.Priority.Last() == SmsService) Program.quit = true;
                         Log("The balance of the SMS service has ended.");
+                        Log("Sleep 1 min before switching to the next service.");
+                        System.Threading.Thread.Sleep(60 * 1000);
                         priorityCounter++;
                         DoWork();
                         return;
@@ -247,6 +249,8 @@ namespace maFileTool.Core
                     {
                         if (settings.Priority.Last() == SmsService) Program.quit = true;
                         Log("The SMS service numbers out of stock.");
+                        Log("Sleep 1 min before switching to the next service.");
+                        System.Threading.Thread.Sleep(60 * 1000);
                         priorityCounter++;
                         DoWork();
                         return;
@@ -255,6 +259,8 @@ namespace maFileTool.Core
                     {
                         if (settings.Priority.Last() == SmsService) Program.quit = true;
                         Log("Unknown error.");
+                        Log("Sleep 1 min before switching to the next service.");
+                        System.Threading.Thread.Sleep(60 * 1000);
                         priorityCounter++;
                         DoWork();
                         return;
