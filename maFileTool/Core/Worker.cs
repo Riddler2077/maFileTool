@@ -308,7 +308,8 @@ namespace maFileTool.Core
 
                         case AuthenticatorLinker.LinkResult.GeneralFailure:
                             Log("Steam GeneralFailture :(");
-                            SaveToExcel("Week", "Week");
+                            if(settings.Mode == "EXCEL")
+                                SaveToExcel("Week", "Week");
                             return;
                     }
                 }
@@ -346,7 +347,8 @@ namespace maFileTool.Core
 
                         case AuthenticatorLinker.FinalizeResult.GeneralFailure:
                             Log("Steam GeneralFailture :(");
-                            SaveToExcel("Week", "Week");
+                            if (settings.Mode == "EXCEL")
+                                SaveToExcel("Week", "Week");
                             return;
                     }
                 }
@@ -358,7 +360,8 @@ namespace maFileTool.Core
                 LogToFile($"{_login}:{_password}:{_emailLogin}:{_emailPassword}:{_phoneNumber}:{linker.LinkedAccount.RevocationCode}");
 
                 smsService.SetStatus(_activationId, "6"); //Код верный, завершение активации
-                SaveToExcel(_phoneNumber, _revocationCode);
+                if (settings.Mode == "EXCEL")
+                    SaveToExcel(_phoneNumber, _revocationCode);
             }
             catch (Exception e)
             {
@@ -523,6 +526,6 @@ namespace maFileTool.Core
             int index = Program.accounts.FindIndex(t => t.Login == _login);
             Console.WriteLine($"[{_login}][{(index + 1)}/{Program.accounts.Count}] - {message}"); 
         }
-        private static void LogToFile(string message) => File.AppendAllText("result.txt", message + "\n");
+        private static void LogToFile(string message) => File.AppendAllText("result.log", message + "\n");
     }
 }

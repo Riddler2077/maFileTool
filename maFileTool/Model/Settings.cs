@@ -3,8 +3,8 @@
     public class Settings
     {
         public string Mode { get; set; } = "TXT";
-        public string BindingTimeout { get; set; } = string.Empty;
-        public string SMSTimeout { get; set; } = string.Empty;
+        public string BindingTimeout { get; set; } = "1";
+        public string SMSTimeout { get; set; } = "1";
         public string CaptchaApiKey { get; set; } = string.Empty;
         public string GetSmsApiKey { get; set; } = string.Empty;
         public string GiveSmsApiKey { get; set; } = string.Empty;

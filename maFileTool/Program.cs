@@ -19,6 +19,7 @@ namespace maFileTool
     public class Program
     {
         public static string steam = Environment.CurrentDirectory + "\\Steam.xlsx";
+        public static string steamtxt = Environment.CurrentDirectory + "\\Steam.txt";
         public static List<Account> accounts = new List<Account>();
         public static bool quit = false;
         static bool b = false;
@@ -32,6 +33,13 @@ namespace maFileTool
                 return;
             }
 
+            if (String.IsNullOrEmpty(Worker.settings.MailServer) || String.IsNullOrWhiteSpace(Worker.settings.MailServer))
+            {
+                Console.WriteLine("Please specify the MailServer in Settings.json");
+                Console.ReadLine();
+                return;
+            }
+
             string mode = Worker.settings.Mode;
 
             switch (mode)
@@ -41,11 +49,29 @@ namespace maFileTool
                     accounts.RemoveAll(t => String.IsNullOrEmpty(t.Login) || t.Login == "Логин" || t.Login == "Login" || !string.IsNullOrEmpty(t.Phone));
                     Console.WriteLine("Loaded - {0} accounts. Press enter to start.", accounts.Count());
                     Console.ReadLine();
+                    Console.SetCursorPosition(0, Console.CursorTop - 1);
                     break;
                 case "TXT":
+                    string[] acs = System.IO.File.ReadAllLines(steamtxt);
+                    int id = 0;
+                    foreach(var a in acs) 
+                    {
+                        id++;
+                        Account account = new Account();
+                        account.Id = id.ToString();
+                        account.Login = a.Split(':')[0];
+                        account.Password = a.Split(':')[1];
+                        account.Email = a.Split(':')[2];
+                        account.EmailPassword = a.Split(':')[3];
+                        accounts.Add(account);
+                    }
+                    Console.WriteLine("Loaded - {0} accounts. Press enter to start.", accounts.Count());
+                    Console.ReadLine();
+                    Console.SetCursorPosition(0, Console.CursorTop - 1);
                     break;
                 default:
                     Console.WriteLine("Please specify the Mode in Settings.json");
+                    Console.ReadLine();
                     return;
             }
             
