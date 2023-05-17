@@ -40,6 +40,20 @@ namespace maFileTool
                 return;
             }
 
+            if (!System.IO.File.Exists(steam))
+            {
+                Console.WriteLine("Сan't find Steam.xlsx");
+                Console.ReadLine();
+                return;
+            }
+
+            if (!System.IO.File.Exists(steamtxt))
+            {
+                Console.WriteLine("Сan't find Steam.txt");
+                Console.ReadLine();
+                return;
+            }
+
             string mode = Worker.settings.Mode;
 
             switch (mode)
