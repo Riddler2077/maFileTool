@@ -1,7 +1,9 @@
 # maFileTool
 [English Version](README.md) | [Русская Версия](README.ru.md)
 
-![Icon](https://github.com/Riddler2077/maFileTool/blob/master/icon.ico)
+<p align="center">
+  <img src="https://github.com/Riddler2077/maFileTool/blob/master/icon.ico" width="150" alt="img">
+</p>
 
 Зачем это нужно:
 - Данный софт отлично подойдёт для автоматической привязки Steam Guard к Вашим аккаунтам и создания мафайлов.
