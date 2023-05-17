@@ -24,6 +24,7 @@ using System.Security.Cryptography;
 using System.Drawing;
 using Org.BouncyCastle.Asn1.X509;
 using System.Drawing.Imaging;
+using MailKit.Net.Pop3;
 
 namespace maFileTool.Core
 {
@@ -458,24 +459,52 @@ namespace maFileTool.Core
 
             var loginCode = string.Empty;
 
-            using (var client = new ImapClient())
+            if (settings.MailProtocol == "IMAP")
             {
-                client.Connect(host, port, true);
-                client.Authenticate(_emailLogin, _emailPassword);
-
-                var inbox = client.Inbox;
-                inbox.Open(FolderAccess.ReadWrite);
-
-                for (var i = inbox.Count - 1; i >= 0; i--)
+                using (var client = new ImapClient())
                 {
-                    var message = inbox.GetMessage(i);
+                    client.Connect(host, port, true);
+                    client.Authenticate(_emailLogin, _emailPassword);
 
-                    var code = Regex.Match(message.HtmlBody, "class=([\"])title-48 c-blue1 fw-b a-center([^>]+)([>])([^<]+)").Groups[4].Value;
-                    if (string.IsNullOrEmpty(code)) continue;
+                    var inbox = client.Inbox;
+                    inbox.Open(FolderAccess.ReadWrite);
 
-                    loginCode = code.Trim();
-                    Log($"Login code: {loginCode}");
-                    break;
+                    for (var i = inbox.Count - 1; i >= 0; i--)
+                    {
+                        var message = inbox.GetMessage(i);
+
+                        var code = Regex.Match(message.HtmlBody, "class=([\"])title-48 c-blue1 fw-b a-center([^>]+)([>])([^<]+)").Groups[4].Value;
+                        if (string.IsNullOrEmpty(code)) continue;
+
+                        loginCode = code.Trim();
+                        Log($"Login code: {loginCode}");
+                        break;
+                    }
+                }
+            }
+            else if (settings.MailProtocol == "POP3")
+            {
+                //Not tested
+                using (var client = new Pop3Client()) 
+                {
+                    client.Connect(host, port, true);
+                    client.Authenticate(_emailLogin, _emailPassword);
+
+                    int count = client.GetMessageCount();
+                    for (int i = count - 1; i >= 0; i--) 
+                    {
+                        var message = client.GetMessage(i);
+                        if (message.Subject.Contains("store.steampowered.com")) 
+                        {
+                            var code = Regex.Match(message.HtmlBody, "class=([\"])title-48 c-blue1 fw-b a-center([^>]+)([>])([^<]+)").Groups[4].Value;
+                            if (string.IsNullOrEmpty(code)) continue;
+
+                            loginCode = code.Trim();
+                            Log($"Login code: {loginCode}");
+                            client.Disconnect(true);
+                            break;
+                        }
+                    }
                 }
             }
 
@@ -486,26 +515,54 @@ namespace maFileTool.Core
         {
             Thread.Sleep(10000);
 
-            using (var client = new ImapClient())
+            if (settings.MailProtocol == "IMAP")
             {
-                client.Connect(host, port, true);
-                client.Authenticate(_emailLogin, _emailPassword);
-
-                var inbox = client.Inbox;
-                inbox.Open(FolderAccess.ReadWrite);
-
-                for (var i = inbox.Count - 1; i >= 0; i--)
+                using (var client = new ImapClient())
                 {
-                    var message = inbox.GetMessage(i);
-                    var link = Regex.Match(message.HtmlBody, "store([.])steampowered([.])com([\\/])phone([\\/])ConfirmEmailForAdd([?])stoken=([^\"]+)").Groups[0].Value;
-                    if (string.IsNullOrEmpty(link)) continue;
+                    client.Connect(host, port, true);
+                    client.Authenticate(_emailLogin, _emailPassword);
 
-                    new WebClient().DownloadString("https://" + link);
-                    Log("Email confirmed.");
-                    break;
+                    var inbox = client.Inbox;
+                    inbox.Open(FolderAccess.ReadWrite);
+
+                    for (var i = inbox.Count - 1; i >= 0; i--)
+                    {
+                        var message = inbox.GetMessage(i);
+                        var link = Regex.Match(message.HtmlBody, "store([.])steampowered([.])com([\\/])phone([\\/])ConfirmEmailForAdd([?])stoken=([^\"]+)").Groups[0].Value;
+                        if (string.IsNullOrEmpty(link)) continue;
+
+                        new WebClient().DownloadString("https://" + link);
+                        Log("Email confirmed.");
+                        break;
+                    }
+
+                    client.Disconnect(true);
                 }
+            }
+            else if (settings.MailProtocol == "POP3") 
+            {
+                //Not tested
+                using (var client = new Pop3Client())
+                {
+                    client.Connect(host, port, true);
+                    client.Authenticate(_emailLogin, _emailPassword);
 
-                client.Disconnect(true);
+                    int count = client.GetMessageCount();
+                    for (int i = count - 1; i >= 0; i--)
+                    {
+                        var message = client.GetMessage(i);
+                        if (message.Subject.Contains("store.steampowered.com"))
+                        {
+                            var link = Regex.Match(message.HtmlBody, "store([.])steampowered([.])com([\\/])phone([\\/])ConfirmEmailForAdd([?])stoken=([^\"]+)").Groups[0].Value;
+                            if (string.IsNullOrEmpty(link)) continue;
+
+                            new WebClient().DownloadString("https://" + link);
+                            Log("Email confirmed.");
+                            client.Disconnect(true);
+                            break;
+                        }
+                    }
+                }
             }
 
             Thread.Sleep(2000);

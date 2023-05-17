@@ -25,6 +25,11 @@ namespace maFileTool
         static bool b = false;
         static void Main(string[] args)
         {
+            string tedonstore = "Powered by tedonstore.com";
+            Console.WriteLine(String.Format("{0," + ((Console.WindowWidth / 2) + (tedonstore.Length / 2)) + "}", tedonstore));
+
+            #region Checks
+
             if (!System.IO.File.Exists(String.Format("{0}\\Settings.json", Environment.CurrentDirectory)))
             {
                 new Utils().SaveSettings();
@@ -36,6 +41,20 @@ namespace maFileTool
             if (String.IsNullOrEmpty(Worker.settings.MailServer) || String.IsNullOrWhiteSpace(Worker.settings.MailServer))
             {
                 Console.WriteLine("Please specify the MailServer in Settings.json");
+                Console.ReadLine();
+                return;
+            }
+
+            if (String.IsNullOrEmpty(Worker.settings.MailPort) || String.IsNullOrWhiteSpace(Worker.settings.MailPort))
+            {
+                Console.WriteLine("Please specify the MailPort in Settings.json");
+                Console.ReadLine();
+                return;
+            }
+
+            if (String.IsNullOrEmpty(Worker.settings.MailProtocol) || String.IsNullOrWhiteSpace(Worker.settings.MailProtocol))
+            {
+                Console.WriteLine("Please specify the MailProtocol in Settings.json");
                 Console.ReadLine();
                 return;
             }
@@ -53,6 +72,8 @@ namespace maFileTool
                 Console.ReadLine();
                 return;
             }
+
+            #endregion
 
             string mode = Worker.settings.Mode;
 

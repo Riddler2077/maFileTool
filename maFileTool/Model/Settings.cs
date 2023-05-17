@@ -19,6 +19,6 @@
         public string[] Priority { get; set; } = new string[] { "GetSms", "GiveSms", "OnlineSim", "SmsActivate", "VakSms" };
         public string MailServer { get; set; } = string.Empty;
         public string MailPort { get; set; } = "993";
-        public string MailType { get; set; } = "IMAP";
+        public string MailProtocol { get; set; } = "IMAP";
     }
 }
