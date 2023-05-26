@@ -574,7 +574,13 @@ namespace maFileTool.Core
             Thread.Sleep(2000);
         }
 
-        private static string FilterPhoneNumber(string phoneNumber) => phoneNumber.Replace("-", string.Empty).Replace("(", string.Empty).Replace(")", string.Empty);
+        private static string FilterPhoneNumber(string phoneNumber)
+        {
+            phoneNumber = phoneNumber.Replace("-", string.Empty).Replace("(", string.Empty).Replace(")", string.Empty);
+            if (!phoneNumber.Contains("+") || !phoneNumber.Contains(Uri.EscapeDataString("+")))
+                phoneNumber = String.Format("+{0}", phoneNumber);
+            return phoneNumber;
+        }
         private static void SaveAccount(SteamGuardAccount account)
         {
             var filename = account.Session.SteamID.ToString() + ".maFile";
