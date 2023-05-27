@@ -88,9 +88,12 @@ namespace maFileTool
                     break;
                 case "TXT":
                     string[] acs = System.IO.File.ReadAllLines(steamtxt);
+                    acs = acs.Where(x => !string.IsNullOrEmpty(x)).ToArray();
+                    acs = acs.Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
                     int id = 0;
                     foreach(var a in acs) 
                     {
+                        if (!a.Contains(':')) continue;
                         id++;
                         Account account = new Account();
                         account.Id = id.ToString();
