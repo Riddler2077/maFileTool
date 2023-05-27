@@ -166,7 +166,9 @@ namespace maFileTool.Services.Api
 
             while (true)
             {
+                
                 long now = CurrentTime();
+                //Console.WriteLine("{0} {1}", now, startedAt);
                 counter++;
                 if (now - startedAt < timeout) await Task.Delay(pollingInterval * 1000).ConfigureAwait(false);
                 else break;

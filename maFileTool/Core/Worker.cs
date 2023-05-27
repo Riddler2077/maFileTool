@@ -469,6 +469,7 @@ namespace maFileTool.Core
             {
                 using (var client = new ImapClient())
                 {
+                    client.CheckCertificateRevocation = false;
                     client.Connect(host, port, true);
                     client.Authenticate(_emailLogin, _emailPassword);
 
@@ -493,6 +494,7 @@ namespace maFileTool.Core
                 //Not tested
                 using (var client = new Pop3Client()) 
                 {
+                    client.CheckCertificateRevocation = false;
                     client.Connect(host, port, true);
                     client.Authenticate(_emailLogin, _emailPassword);
 
@@ -525,6 +527,7 @@ namespace maFileTool.Core
             {
                 using (var client = new ImapClient())
                 {
+                    client.CheckCertificateRevocation = false;
                     client.Connect(host, port, true);
                     client.Authenticate(_emailLogin, _emailPassword);
 
@@ -550,6 +553,7 @@ namespace maFileTool.Core
                 //Not tested
                 using (var client = new Pop3Client())
                 {
+                    client.CheckCertificateRevocation = false;
                     client.Connect(host, port, true);
                     client.Authenticate(_emailLogin, _emailPassword);
 
