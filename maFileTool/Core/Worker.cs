@@ -527,6 +527,7 @@ namespace maFileTool.Core
             {
                 using (var client = new ImapClient())
                 {
+                    //SSL Fix
                     client.CheckCertificateRevocation = false;
                     client.Connect(host, port, true);
                     client.Authenticate(_emailLogin, _emailPassword);
