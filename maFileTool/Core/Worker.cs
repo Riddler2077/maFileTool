@@ -382,7 +382,11 @@ namespace maFileTool.Core
 
             NameValueCollection data = new NameValueCollection();
             data.Add("sessionID", session.SessionID);
-            data.Add("phoneNumber", String.Format("+{0}", _phoneNumber));
+            
+            if(_phoneNumber.Contains("+"))
+                data.Add("phoneNumber", _phoneNumber);
+            else
+                data.Add("phoneNumber", String.Format("+{0}", _phoneNumber));
 
             NameValueCollection headers = new NameValueCollection();
             headers.Add("Accept-Language", "en-US,en;q=0.7");
@@ -398,6 +402,11 @@ namespace maFileTool.Core
             try
             {
                 string response = SteamWeb.Request(url, "POST", data, cookies, headers, "https://store.steampowered.com/phone/add");
+                if (response.Contains("DOCTYPE")) 
+                {
+                    response = SteamWeb.Request(url, "POST", data, cookies, headers, "https://store.steampowered.com/phone/add");
+                }
+
                 JObject obj = JObject.Parse(response);
                 string success = obj["success"].ToString();
                 string is_valid = obj["is_valid"].ToString();
@@ -527,7 +536,6 @@ namespace maFileTool.Core
             {
                 using (var client = new ImapClient())
                 {
-                    //SSL Fix
                     client.CheckCertificateRevocation = false;
                     client.Connect(host, port, true);
                     client.Authenticate(_emailLogin, _emailPassword);
