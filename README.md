@@ -61,13 +61,14 @@ If you do not plan to use any service, you can not specify its api key.
 Countries:
 Now you can specify the country of the number when ordering.
 To do this, it is enough to insert the country ID in the field of the corresponding SMS service.
-For example ID of Russia - 0, Ukraine - 1, USA - 187
+For example ID of Russia - 0, Ukraine - 1, USA - 187.
 A list of all countries for each individual service is attached below:
-GetSmsCountry - https://drive.google.com/file/d/1KeCSBXhrN4agG-tWZCoI9OVqeCowugX_/view?usp=sharing
-GiveSmsCountry - https://give-sms.com/api.html#countrylist
-OnlineSimCountry - ID from => https://drive.google.com/file/d/14Lj0h-Uo41ykhhFUgRhv9kCeOeHzagM1/view?usp=sharing
-SmsActivateCountry - ID from => https://drive.google.com/file/d/14Lj0h-Uo41ykhhFUgRhv9kCeOeHzagM1/view?usp=sharing
-VakSmsCountry - ID from => https://drive.google.com/file/d/14Lj0h-Uo41ykhhFUgRhv9kCeOeHzagM1/view?usp=sharing
+
+- GetSmsCountry - https://drive.google.com/file/d/1KeCSBXhrN4agG-tWZCoI9OVqeCowugX_/view?usp=sharing
+- GiveSmsCountry - https://give-sms.com/api.html#countrylist
+- OnlineSimCountry - ID from => https://drive.google.com/file/d/14Lj0h-Uo41ykhhFUgRhv9kCeOeHzagM1/view?usp=sharing
+- SmsActivateCountry - ID from => https://drive.google.com/file/d/14Lj0h-Uo41ykhhFUgRhv9kCeOeHzagM1/view?usp=sharing
+- VakSmsCountry - ID from => https://drive.google.com/file/d/14Lj0h-Uo41ykhhFUgRhv9kCeOeHzagM1/view?usp=sharing
 
 Limits:
 - Steam gives 4 attempts per week to link the Steam Guard number
