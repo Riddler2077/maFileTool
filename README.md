@@ -3,7 +3,7 @@
 
 <p align="center">
   <img src="https://github.com/Riddler2077/maFileTool/blob/master/icon.ico" width="150" alt="img">
-  <h1 align="center"><a href="https://github.com/Riddler2077/maFileTool/releases/tag/maFileTool1.0.2" target="_blank">Download here</a></h1>
+  <h1 align="center"><a href="https://github.com/Riddler2077/maFileTool/releases/tag/maFileTool1.0.3" target="_blank">Download here</a></h1>
 </p>
 
 What is it:
@@ -59,6 +59,7 @@ If you do not plan to use any service, you can not specify its api key.
 - Mail Protocol - IMAP or POP3 protocol. Use with POP3 has not been tested.
 
 Countries:
+
 Now you can specify the country of the number when ordering.
 To do this, it is enough to insert the country ID in the field of the corresponding SMS service.
 For example ID of Russia - 0, Ukraine - 1, USA - 187.
