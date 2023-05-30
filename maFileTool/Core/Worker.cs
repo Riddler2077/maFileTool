@@ -77,6 +77,7 @@ namespace maFileTool.Core
             {
                 case "GetSms":
                     smsService = new SmsService(settings.GetSmsApiKey);
+                    
                     if (String.IsNullOrEmpty(settings.GetSmsApiKey) || String.IsNullOrWhiteSpace(settings.GetSmsApiKey)) 
                     {
                         Log("GetSms apikey is not set! Specify the apikey in Settings.json");
@@ -85,7 +86,9 @@ namespace maFileTool.Core
                         return;
                     }
                     smsService.BaseUrl = settings.GetSmsBaseUrl; //А вдруг
+                    smsService.Country = settings.GetSmsCountry;
                     if (String.IsNullOrEmpty(smsService.BaseUrl) || String.IsNullOrWhiteSpace(smsService.BaseUrl)) smsService.BaseUrl = "getsms.online";
+                    if (String.IsNullOrEmpty(smsService.Country) || String.IsNullOrWhiteSpace(smsService.Country)) smsService.Country = "or";
                     break;
                 case "GiveSms":
                     smsService = new SmsService(settings.GiveSmsApiKey);
@@ -97,7 +100,9 @@ namespace maFileTool.Core
                         return;
                     }
                     smsService.BaseUrl = settings.GiveSmsBaseUrl;
+                    smsService.Country = settings.GiveSmsCountry;
                     if (String.IsNullOrEmpty(smsService.BaseUrl) || String.IsNullOrWhiteSpace(smsService.BaseUrl)) smsService.BaseUrl = "give-sms.com";
+                    if (String.IsNullOrEmpty(smsService.Country) || String.IsNullOrWhiteSpace(smsService.Country)) smsService.Country = "0";
                     break;
                 case "OnlineSim":
                     smsService = new SmsService(settings.OnlineSimApiKey);
@@ -109,7 +114,9 @@ namespace maFileTool.Core
                         return;
                     }
                     smsService.BaseUrl = settings.OnlineSimBaseUrl;
+                    smsService.Country = settings.OnlineSimCountry;
                     if (String.IsNullOrEmpty(smsService.BaseUrl) || String.IsNullOrWhiteSpace(smsService.BaseUrl)) smsService.BaseUrl = "onlinesim.io";
+                    if (String.IsNullOrEmpty(smsService.Country) || String.IsNullOrWhiteSpace(smsService.Country)) smsService.Country = "7";
                     break;
                 case "SmsActivate":
                     smsService = new SmsService(settings.SmsActivateApiKey);
@@ -121,7 +128,9 @@ namespace maFileTool.Core
                         return;
                     }
                     smsService.BaseUrl = settings.SmsActivateBaseUrl;
+                    smsService.Country = settings.SmsActivateCountry;
                     if (String.IsNullOrEmpty(smsService.BaseUrl) || String.IsNullOrWhiteSpace(smsService.BaseUrl)) smsService.BaseUrl = "sms-activate.org";
+                    if (String.IsNullOrEmpty(smsService.Country) || String.IsNullOrWhiteSpace(smsService.Country)) smsService.Country = "0";
                     break;
                 case "VakSms":
                     smsService = new SmsService(settings.VakSmsApiKey);
@@ -133,7 +142,9 @@ namespace maFileTool.Core
                         return;
                     }
                     smsService.BaseUrl = settings.VakSmsBaseUrl;
+                    smsService.Country = settings.VakSmsCountry;
                     if (String.IsNullOrEmpty(smsService.BaseUrl) || String.IsNullOrWhiteSpace(smsService.BaseUrl)) smsService.BaseUrl = "vak-sms.com";
+                    if (String.IsNullOrEmpty(smsService.Country) || String.IsNullOrWhiteSpace(smsService.Country)) smsService.Country = "0";
                     break;
             }
 
@@ -233,7 +244,7 @@ namespace maFileTool.Core
 
                 while (true)
                 {
-                    string result = smsService.GetNumber().Result;
+                    string result = smsService.GetNumber(smsService.Country).Result;
 
                     if (result == "NO_MEANS" || result == "NO_BALANCE")
                     {

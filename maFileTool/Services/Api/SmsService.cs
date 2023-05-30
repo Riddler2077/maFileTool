@@ -22,6 +22,8 @@ namespace maFileTool.Services.Api
 
         public string ApiKey { get; set; }
 
+        public string Country { get; set; }
+
         public int DefaultTimeout { get; set; } = 120;
 
         public int PollingInterval { get; set; } = 10;
