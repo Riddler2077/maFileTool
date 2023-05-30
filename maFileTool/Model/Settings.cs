@@ -19,7 +19,7 @@
         public string[] Priority { get; set; } = new string[] { "GetSms", "GiveSms", "OnlineSim", "SmsActivate", "VakSms" };
         public string GetSmsCountry { get; set; } = "or";
         public string GiveSmsCountry { get; set; } = "0";
-        public string OnlineSimCountry { get; set; } = "7";
+        public string OnlineSimCountry { get; set; } = "0";
         public string SmsActivateCountry { get; set; } = "0";
         public string VakSmsCountry { get; set; } = "0";
         public string MailServer { get; set; } = string.Empty;

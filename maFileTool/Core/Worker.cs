@@ -116,7 +116,7 @@ namespace maFileTool.Core
                     smsService.BaseUrl = settings.OnlineSimBaseUrl;
                     smsService.Country = settings.OnlineSimCountry;
                     if (String.IsNullOrEmpty(smsService.BaseUrl) || String.IsNullOrWhiteSpace(smsService.BaseUrl)) smsService.BaseUrl = "onlinesim.io";
-                    if (String.IsNullOrEmpty(smsService.Country) || String.IsNullOrWhiteSpace(smsService.Country)) smsService.Country = "7";
+                    if (String.IsNullOrEmpty(smsService.Country) || String.IsNullOrWhiteSpace(smsService.Country)) smsService.Country = "0";
                     break;
                 case "SmsActivate":
                     smsService = new SmsService(settings.SmsActivateApiKey);
