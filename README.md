@@ -62,7 +62,7 @@ Countries:
 
 Now you can specify the country of the number when ordering.
 To do this, it is enough to insert the country ID in the field of the corresponding SMS service.
-For example ID of Russia - 0, Ukraine - 1, USA - 187.
+For example ID of Russia - 0, Ukraine - 1, USA - 187. Before inserting the id, check the country support in the sms service.
 A list of all countries for each individual service is attached below:
 
 - GetSmsCountry - https://drive.google.com/file/d/1KeCSBXhrN4agG-tWZCoI9OVqeCowugX_/view?usp=sharing
