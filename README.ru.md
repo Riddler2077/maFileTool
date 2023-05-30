@@ -55,6 +55,15 @@
 - MailPort - Порт сервера.
 - MailProtocol - Протокол IMAP или POP3. Использование с POP3 не тестировалось.
 
+Страны:
+
+Теперь вы можете указать страну при заказе номера. Для этого достаточно ввести ID страны в поле соответствующего SMS-сервиса. Например, идентификатор России - 0, Украины - 1, США - 187. Список ID всех стран для каждого отдельного SMS сервиса прилагается ниже:
+- GetSmsCountry - https://drive.google.com/file/d/1KeCSBXhrN4agG-tWZCoI9OVqeCowugX_/view?usp=sharing
+- GiveSmsCountry - https://give-sms.com/api.html#countrylist
+- OnlineSimCountry - ID from => https://drive.google.com/file/d/14Lj0h-Uo41ykhhFUgRhv9kCeOeHzagM1/view?usp=sharing
+- SmsActivateCountry - ID from => https://drive.google.com/file/d/14Lj0h-Uo41ykhhFUgRhv9kCeOeHzagM1/view?usp=sharing
+- VakSmsCountry - ID from => https://drive.google.com/file/d/14Lj0h-Uo41ykhhFUgRhv9kCeOeHzagM1/view?usp=sharing
+
 Лимиты:
 - Steam дает 4 попытки в неделю на привязку номера Steam Guard
 
