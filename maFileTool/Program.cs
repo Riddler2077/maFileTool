@@ -2,6 +2,7 @@
 using maFileTool.Model;
 using maFileTool.Services;
 using maFileTool.Services.Api;
+using maFileTool.Services.SteamAuth;
 using Newtonsoft.Json;
 using OfficeOpenXml.Style;
 using System;
@@ -9,6 +10,8 @@ using System.CodeDom;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Security.Policy;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -81,7 +84,33 @@ namespace maFileTool
             {
                 case "EXCEL":
                     accounts = new Excel().ReadFromExcel(steam);
-                    accounts.RemoveAll(t => String.IsNullOrEmpty(t.Login) || t.Login == "Логин" || t.Login == "Login" || !string.IsNullOrEmpty(t.Phone));
+                    accounts.RemoveAll(t => String.IsNullOrEmpty(t.Login) || t.Login == "Логин" || t.Login == "Login");
+
+                    int count = accounts.Count;
+                    for (int i = 0; i < count; i++) 
+                    {
+                        Account account = accounts[i];
+                        string date = account.Phone;
+                        try
+                        {
+                            DateTime accDate = DateTime.ParseExact(date, "dd.MM.yy HH:mm", System.Globalization.CultureInfo.InvariantCulture);
+                            if (accDate > DateTime.Now)
+                            {
+                                accounts.Remove(account);
+                                i--; count--;
+                            }
+                        }
+                        catch (FormatException)
+                        {
+                            accounts.Remove(account);
+                            i--; count--;
+                        }
+                        catch (ArgumentNullException)
+                        {
+                            //Пустые оставляем
+                        }
+                    }
+
                     Console.WriteLine("Loaded - {0} accounts. Press enter to start.", accounts.Count());
                     Console.ReadLine();
                     Console.SetCursorPosition(0, Console.CursorTop - 1);

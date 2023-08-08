@@ -4,9 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using TwoCaptcha.Captcha;
-using TwoCaptcha.Exceptions;
-using TwoCaptcha;
 using System.Globalization;
 using System.Net.Http;
 using Newtonsoft.Json;
@@ -76,6 +73,8 @@ namespace maFileTool.Services.Api
                 url = String.Format("http://api-conserver.{0}/stubs/handler_api.php?{1}", BaseUrl, BuildQuery(parameters));
             else if (BaseUrl.Contains("getsms") || BaseUrl.Contains("sms-activate"))
                 url = String.Format("http://api.{0}/stubs/handler_api.php?{1}", BaseUrl, BuildQuery(parameters));
+            else if(BaseUrl.Contains("5sim"))
+                url = String.Format("http://api1.{0}/stubs/handler_api.php?{1}", BaseUrl, BuildQuery(parameters));
             else
                 url = String.Format("http://{0}/stubs/handler_api.php?{1}", BaseUrl, BuildQuery(parameters));
 
@@ -112,6 +111,13 @@ namespace maFileTool.Services.Api
 
             if (BaseUrl.Contains("getsms"))
                 parameters["service"] = "sm"; //getsms - sm
+            if (BaseUrl.Contains("sms-activation-service"))
+            {
+                parameters["service"] = "mt"; //sms-activation-service - mt
+                parameters["lang"] = "ru";
+            }
+            if (BaseUrl.Contains("5sim"))
+                parameters["service"] = "mt"; //give-sms - mt
             if (BaseUrl.Contains("give-sms"))
                 parameters["service"] = "mt"; //give-sms - mt
             if (BaseUrl.Contains("onlinesim"))
@@ -138,7 +144,19 @@ namespace maFileTool.Services.Api
             var parameters = new Dictionary<string, string>();
             parameters["action"] = "setStatus";
             parameters["id"] = id;
-            parameters["status"] = status;
+
+            if (BaseUrl.Contains("sms-activation-service")) 
+            {
+                if(status == "-1") parameters["status"] = "8";
+                else parameters["status"] = status;
+                parameters["lang"] = "ru";
+            }
+            else if (BaseUrl.Contains("onlinesim"))
+            {
+                if (status == "-1") parameters["status"] = "6";
+                else parameters["status"] = status;
+            }
+            else parameters["status"] = status;
 
             if(!String.IsNullOrEmpty(forward) || !String.IsNullOrWhiteSpace(forward))
                 parameters["forward"] = forward;
@@ -147,6 +165,7 @@ namespace maFileTool.Services.Api
             return response;
         }
 
+        private string result = string.Empty;
         public async Task<string> GetStatus(string id)
         {
             var parameters = new Dictionary<string, string>();
@@ -154,11 +173,14 @@ namespace maFileTool.Services.Api
             parameters["id"] = id;
 
             string response = await Res(parameters);
+            result = response;
             return response;
         }
 
         public async Task<string> WaitForResult(string id, string login, Dictionary<string, int> waitOptions)
         {
+            result = "STATUS_WAIT_CODE";
+
             long startedAt = CurrentTime();
 
             int timeout = waitOptions.TryGetValue("timeout", out timeout) ? timeout : DefaultTimeout;
@@ -175,30 +197,31 @@ namespace maFileTool.Services.Api
                 if (now - startedAt < timeout) await Task.Delay(pollingInterval * 1000).ConfigureAwait(false);
                 else break;
 
+                string time = DateTime.Now.ToString("HH:mm");
                 //Logs
                 if (b)
                 {
                     int index = Program.accounts.FindIndex(t => t.Login == login);
                     Console.SetCursorPosition(String.Format("[{0}][{1}/{2}] - Waiting SMS code - {3} sec.", login, (index + 1), Program.accounts.Count, (pollingInterval * counter)).Length, Console.CursorTop - 1);
                     do { Console.Write("\b \b"); } while (Console.CursorLeft > 0);
-                    Console.WriteLine("[{0}][{1}/{2}] - Waiting SMS code - {3}/{4} sec.", login, (index + 1), Program.accounts.Count, (pollingInterval * counter), timeout);
+                    Console.WriteLine("[{0}][{1}][{2}/{3}] - Waiting SMS code - {4}/{5} sec.", time, login, (index + 1), Program.accounts.Count, (pollingInterval * counter), timeout);
                 }
                 else
                 {
                     b = true;
                     int index = Program.accounts.FindIndex(t => t.Login == login);
-                    Console.WriteLine("[{0}][{1}/{2}] - Waiting SMS code - {3}/{4} sec.", login, (index + 1), Program.accounts.Count, (pollingInterval * counter), timeout);
+                    Console.WriteLine("[{0}][{1}][{2}/{3}] - Waiting SMS code - {4}/{5} sec.", time, login, (index + 1), Program.accounts.Count, (pollingInterval * counter), timeout);
                 }
 
                 try
                 {
-                    string result = await GetStatus(id);
-                    if (result != "STATUS_WAIT_CODE")
+                    GetStatus(id);
+                    if (result != "STATUS_WAIT_CODE" && !result.Contains("502 Bad Gateway"))
                     {
                         return result;
                     }
                 }
-                catch (NetworkException)
+                catch 
                 {
                     // ignore network errors
                 }
@@ -227,12 +250,12 @@ namespace maFileTool.Services.Api
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    throw new NetworkException("Unexpected response: " + body);
+                    throw new WebException("Unexpected response: " + body);
                 }
 
-                if (body.StartsWith("BAD_KEY"))
+                if (body.StartsWith("BAD_KEY") || body.StartsWith("BAD_SERVICE"))
                 {
-                    throw new ApiException(body);
+                    throw new WebException(body);
                 }
 
                 if (body.StartsWith("ACCESS_BALANCE") || body.StartsWith("STATUS_OK"))

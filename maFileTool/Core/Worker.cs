@@ -1,8 +1,8 @@
-﻿using MailKit.Net.Imap;
-using MailKit;
+﻿using MailKit;
+using MailKit.Net.Imap;
+using MailKit.Net.Pop3;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
-using SteamAuth;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -24,7 +24,12 @@ using System.Security.Cryptography;
 using System.Drawing;
 using Org.BouncyCastle.Asn1.X509;
 using System.Drawing.Imaging;
-using MailKit.Net.Pop3;
+using maFileTool.Services.SteamAuth;
+using SteamKit2.Authentication;
+using System.Diagnostics;
+using SteamKit2;
+using SteamKit2.Internal;
+using System.Security.Policy;
 
 namespace maFileTool.Core
 {
@@ -42,6 +47,7 @@ namespace maFileTool.Core
         private string _revocationCode = String.Empty;
 
         private int priorityCounter = 0;
+        private bool emailVerify = true;
 
         public Worker(string login, string password, string emailLogin, string emailPassword)
         {
@@ -71,6 +77,8 @@ namespace maFileTool.Core
                 return;
             }
 
+            emailVerify = true;
+
             SmsService smsService = new SmsService("");
 
             switch (SmsService)
@@ -89,6 +97,36 @@ namespace maFileTool.Core
                     smsService.Country = settings.GetSmsCountry;
                     if (String.IsNullOrEmpty(smsService.BaseUrl) || String.IsNullOrWhiteSpace(smsService.BaseUrl)) smsService.BaseUrl = "getsms.online";
                     if (String.IsNullOrEmpty(smsService.Country) || String.IsNullOrWhiteSpace(smsService.Country)) smsService.Country = "or";
+                    break;
+                case "SmsActivationService":
+                    smsService = new SmsService(settings.SmsActivationServiceApiKey);
+
+                    if (String.IsNullOrEmpty(settings.SmsActivationServiceApiKey) || String.IsNullOrWhiteSpace(settings.SmsActivationServiceApiKey))
+                    {
+                        Log("SmsActivationService apikey is not set! Specify the apikey in Settings.json");
+                        priorityCounter++;
+                        DoWork();
+                        return;
+                    }
+                    smsService.BaseUrl = settings.SmsActivationServiceBaseUrl; //А вдруг
+                    smsService.Country = settings.SmsActivationServiceCountry;
+                    if (String.IsNullOrEmpty(smsService.BaseUrl) || String.IsNullOrWhiteSpace(smsService.BaseUrl)) smsService.BaseUrl = "sms-activation-service.com";
+                    if (String.IsNullOrEmpty(smsService.Country) || String.IsNullOrWhiteSpace(smsService.Country)) smsService.Country = "0";
+                    break;
+                case "FiveSim":
+                    smsService = new SmsService(settings.FiveSimApiKey);
+
+                    if (String.IsNullOrEmpty(settings.FiveSimApiKey) || String.IsNullOrWhiteSpace(settings.FiveSimApiKey))
+                    {
+                        Log("FiveSim apikey is not set! Specify the apikey in Settings.json");
+                        priorityCounter++;
+                        DoWork();
+                        return;
+                    }
+                    smsService.BaseUrl = settings.FiveSimBaseUrl; //А вдруг
+                    smsService.Country = settings.FiveSimCountry;
+                    if (String.IsNullOrEmpty(smsService.BaseUrl) || String.IsNullOrWhiteSpace(smsService.BaseUrl)) smsService.BaseUrl = "5sim.biz";
+                    if (String.IsNullOrEmpty(smsService.Country) || String.IsNullOrWhiteSpace(smsService.Country)) smsService.Country = "0";
                     break;
                 case "GiveSms":
                     smsService = new SmsService(settings.GiveSmsApiKey);
@@ -154,101 +192,80 @@ namespace maFileTool.Core
             {
                 Log(String.Format("Balance {0} - {1}", smsService.BaseUrl, smsService.Balance().Result));
 
-                UserLogin userLogin = new UserLogin(_login, _password);
-                LoginResult response = LoginResult.BadCredentials;
+                #region Authorization
 
-                while ((response = userLogin.DoLogin()) != LoginResult.LoginOkay)
+                string username = _login;
+                string password = _password;
+
+                // Start a new SteamClient instance
+                SteamClient steamClient = new SteamClient();
+
+                // Connect to Steam
+                steamClient.Connect();
+
+                // Really basic way to wait until Steam is connected
+                while (!steamClient.IsConnected)
+                    Thread.Sleep(500);
+
+                // Create a new auth session
+                CredentialsAuthSession authSession;
+
+                try
                 {
-                    switch (response)
-                    {
-                        case LoginResult.NeedEmail:
-                            Log("Waiting login code");
-                            var emailCode = GetLoginCodeFromEmail(settings.MailServer, Int32.Parse(settings.MailPort));
-                            userLogin.EmailCode = emailCode;
-                            break;
+                    AuthSessionDetails authSessionDetails = new AuthSessionDetails();
+                    authSessionDetails.Username = username;
+                    authSessionDetails.Password = password;
+                    authSessionDetails.IsPersistentSession = false;
+                    authSessionDetails.PlatformType = EAuthTokenPlatformType.k_EAuthTokenPlatformType_MobileApp;
+                    authSessionDetails.ClientOSType = EOSType.Android9;
+                    authSessionDetails.Authenticator = new UserFormAuthenticator(new SteamGuardAccount());
 
-                        case LoginResult.NeedCaptcha:
-
-                            Log("Сaptcha needed!");
-                            TwoCaptcha.TwoCaptcha solver = new TwoCaptcha.TwoCaptcha(settings.CaptchaApiKey);
-                            solver.DefaultTimeout = 60 * 1000;
-
-                            Log(String.Format("Balance rucaptcha.com - {0:F2}", solver.Balance().Result).Replace(',', '.'));
-
-                            //string url = String.Format("https://store.steampowered.com/login/rendercaptcha?gid={0}", userLogin.CaptchaGID);
-                            string url = String.Format("https://steamcommunity.com/public/captcha.php?gid={0}", userLogin.CaptchaGID);
-
-                            string base64 = string.Empty;
-                            using (WebClient webClient = new WebClient()) 
-                            {
-                                byte[] data = webClient.DownloadData(url);
-                                base64 = Convert.ToBase64String(data);
-                                //Если нужно просмотреть капчу
-                                /*using (MemoryStream mem = new MemoryStream(data)) 
-                                {
-                                    using (var img = Image.FromStream(mem))
-                                    {
-                                        // If you want it as Png
-                                        img.Save(Environment.CurrentDirectory + "\\image.png", ImageFormat.Png);
-                                    }
-                                }*/
-                            }
-
-                            TwoCaptcha.Captcha.Normal captcha = new TwoCaptcha.Captcha.Normal();
-                            captcha.SetBase64(base64);
-                            captcha.SetMinLen(6);
-                            captcha.SetMaxLen(6);
-                            captcha.SetCaseSensitive(false);
-                            captcha.SetLang("en");
-
-                            Log("Trying to solve a captcha!");
-
-                            try
-                            {
-                                solver.Solve(captcha).Wait();
-                                string code = captcha.Code.ToUpper();
-                                Log(String.Format("Captcha solved: {0}", code));
-                                userLogin.CaptchaText = code;
-                                break;
-                            }
-                            catch (Exception e)
-                            {
-                                Console.WriteLine("Error occurred: " + e.Message);
-                                return;
-                            }
-
-                        case LoginResult.Need2FA:
-                            Log("Already 2FA protected");
-                            return;
-
-                        case LoginResult.BadRSA:
-                            Log("Error logging in: Steam returned \"BadRSA\"");
-                            return;
-
-                        case LoginResult.BadCredentials:
-                            Log("Wrong username or password");
-                            return;
-
-                        case LoginResult.TooManyFailedLogins:
-                            Log("IP banned");
-                            Program.quit = true;
-                            return;
-
-                        case LoginResult.GeneralFailure:
-                            Log("Steam GeneralFailture :(");
-                            return;
-                    }
+                    authSession = AsyncHelpers.RunSync<CredentialsAuthSession>(() => steamClient.Authentication.BeginAuthSessionViaCredentialsAsync(authSessionDetails));
+                }
+                catch (Exception ex)
+                {
+                    Log("Steam Login Error");
+                    return;
                 }
 
-                SessionData session = userLogin.Session;
+                // Starting polling Steam for authentication response
+                AuthPollResult pollResponse;
+                try
+                {
+                    pollResponse = AsyncHelpers.RunSync<AuthPollResult>(() => authSession.PollingWaitForResultAsync());
+                }
+                catch (Exception ex)
+                {
+                    Log("Steam Login Error 2");
+                    return;
+                }
 
+                // Build a SessionData object
+                SessionData sessionData = new SessionData()
+                {
+                    SteamID = authSession.SteamID.ConvertToUInt64(),
+                    AccessToken = pollResponse.AccessToken,
+                    RefreshToken = pollResponse.RefreshToken,
+                };
+
+                sessionData.SessionID = sessionData.GetCookies().GetCookies(new Uri("http://steamcommunity.com")).Cast<Cookie>().First(c => c.Name == "sessionid").Value;
+
+                //Login succeeded
+                //this.Session = sessionData;
+
+                #endregion
+
+                Log("Steam account login succeeded.");
+
+                #region Getting Number
+                
                 while (true)
                 {
                     string result = smsService.GetNumber(smsService.Country).Result;
 
                     if (result == "NO_MEANS" || result == "NO_BALANCE")
                     {
-                        if(settings.Priority.Last() == SmsService) Program.quit = true;
+                        if (settings.Priority.Last() == SmsService) Program.quit = true;
                         Log("The balance of the SMS service has ended.");
                         Log("Sleep 1 min before switching to the next service.");
                         System.Threading.Thread.Sleep(60 * 1000);
@@ -283,7 +300,7 @@ namespace maFileTool.Core
                         Log(String.Format("Got a number {0}, ActivationId {1}", _phoneNumber, _activationId));
                     }
 
-                    string is_valid = PhoneValidate(session);
+                    string is_valid = PhoneValidate(sessionData);
 
                     if (is_valid == "valid") break;
                     else if (is_valid == "invalid")
@@ -301,19 +318,39 @@ namespace maFileTool.Core
 
                 if (Program.quit) return;
 
-                Log(String.Format("Number {0} accepted, waiting email from steam.", _phoneNumber));
+                #endregion
 
-                var linker = new AuthenticatorLinker(session);
-                var linkResponse = AuthenticatorLinker.LinkResult.GeneralFailure;
+                // Begin linking mobile authenticator
+                AuthenticatorLinker linker = new AuthenticatorLinker(sessionData);
 
-                while ((linkResponse = linker.AddAuthenticator()) != AuthenticatorLinker.LinkResult.AwaitingFinalization)
+                AuthenticatorLinker.LinkResult linkResponse = AuthenticatorLinker.LinkResult.GeneralFailure;
+                while (linkResponse != AuthenticatorLinker.LinkResult.AwaitingFinalization)
                 {
+                    try
+                    {
+                        linkResponse = AsyncHelpers.RunSync<AuthenticatorLinker.LinkResult>(() => linker.AddAuthenticator());
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"Error adding your authenticator: {ex.Message}");
+                        return;
+                    }
+
                     switch (linkResponse)
                     {
                         case AuthenticatorLinker.LinkResult.MustProvidePhoneNumber:
-                            //var phoneNumber = getSmsOnline.GetNewPhoneNumber(settings.SmsApiKey);
-                            var phoneNumber = FilterPhoneNumber(_phoneNumber);
-                            linker.PhoneNumber = phoneNumber;
+                            _phoneNumber = FilterPhoneNumber(_phoneNumber);
+                            if (!PhoneNumberOkay(_phoneNumber)) return;
+                            linker.PhoneNumber = _phoneNumber;
+                            break;
+
+                        case AuthenticatorLinker.LinkResult.AuthenticatorPresent:
+                            Log("This account already has an authenticator linked. You must remove that authenticator to add SDA as your authenticator.");
+                            return;
+
+                        case AuthenticatorLinker.LinkResult.FailureAddingPhone:
+                            Log("Failed to add your phone number. Please try again or use a different phone number.");
+                            linker.PhoneNumber = null;
                             break;
 
                         case AuthenticatorLinker.LinkResult.MustRemovePhoneNumber:
@@ -321,16 +358,19 @@ namespace maFileTool.Core
                             break;
 
                         case AuthenticatorLinker.LinkResult.MustConfirmEmail:
+                            Log(String.Format("Number {0} accepted, waiting email from steam.", _phoneNumber));
                             ConfirmEmailForAdd(settings.MailServer, Int32.Parse(settings.MailPort));
+                            if (!emailVerify) return;
                             break;
 
                         case AuthenticatorLinker.LinkResult.GeneralFailure:
-                            Log("Steam GeneralFailture :(");
-                            if(settings.Mode == "EXCEL")
-                                SaveToExcel("Week", "Week");
+                            Log("Error adding your authenticator.");
+                            string time = DateTime.Now.AddMinutes(30).ToString("dd.MM.yy HH:mm");
+                            if (settings.Mode == "EXCEL")
+                                SaveToExcel(time, time);
                             return;
                     }
-                }
+                } // End while loop checking for AwaitingFinalization
 
                 smsService.SetStatus(_activationId, "1"); //Уведомление, что SMS отправлена
 
@@ -346,12 +386,15 @@ namespace maFileTool.Core
                     {
                         Log("SMS not received");
                         smsService.SetStatus(_activationId, "-1"); //Отмена активации
-                        DoWork();
+                        //DoWork();
+                        string time = DateTime.Now.AddMinutes(30).ToString("dd.MM.yy HH:mm");
+                        if (settings.Mode == "EXCEL")
+                            SaveToExcel(time, time);
                         return;
                     }
 
                     Log(String.Format("Received SMS code {0}", smsCode));
-                    finalizeResponse = linker.FinalizeAddAuthenticator(smsCode);
+                    finalizeResponse = AsyncHelpers.RunSync<AuthenticatorLinker.FinalizeResult>(() => linker.FinalizeAddAuthenticator(smsCode));
 
                     switch (finalizeResponse)
                     {
@@ -365,8 +408,9 @@ namespace maFileTool.Core
 
                         case AuthenticatorLinker.FinalizeResult.GeneralFailure:
                             Log("Steam GeneralFailture :(");
+                            string time = DateTime.Now.AddMinutes(30).ToString("dd.MM.yy HH:mm");
                             if (settings.Mode == "EXCEL")
-                                SaveToExcel("Week", "Week");
+                                SaveToExcel(time, time);
                             return;
                     }
                 }
@@ -387,14 +431,21 @@ namespace maFileTool.Core
             }
         }
 
+        public bool PhoneNumberOkay(string phoneNumber)
+        {
+            if (phoneNumber == null || phoneNumber.Length == 0) return false;
+            if (phoneNumber[0] != '+') return false;
+            return true;
+        }
+
         private string PhoneValidate(SessionData session)
         {
             string url = "https://store.steampowered.com/phone/validate";
 
             NameValueCollection data = new NameValueCollection();
             data.Add("sessionID", session.SessionID);
-            
-            if(_phoneNumber.Contains("+"))
+
+            if (_phoneNumber.Contains("+"))
                 data.Add("phoneNumber", _phoneNumber);
             else
                 data.Add("phoneNumber", String.Format("+{0}", _phoneNumber));
@@ -408,14 +459,14 @@ namespace maFileTool.Core
 
             CookieContainer cookies = new CookieContainer();
             cookies.Add(new Cookie("sessionid", session.SessionID, "/", ".steampowered.com"));
-            cookies.Add(new Cookie("steamLoginSecure", session.SteamLoginSecure, "/", ".steampowered.com"));
+            cookies.Add(new Cookie("steamLoginSecure", session.GetSteamLoginSecure(), "/", ".steampowered.com"));
 
             try
             {
-                string response = SteamWeb.Request(url, "POST", data, cookies, headers, "https://store.steampowered.com/phone/add");
-                if (response.Contains("DOCTYPE")) 
+                string response = AsyncHelpers.RunSync<string>(() => SteamWeb.POSTRequest(url, cookies, data));
+                if (response.Contains("DOCTYPE"))
                 {
-                    response = SteamWeb.Request(url, "POST", data, cookies, headers, "https://store.steampowered.com/phone/add");
+                    response = AsyncHelpers.RunSync<string>(() => SteamWeb.POSTRequest(url, cookies, data));
                 }
 
                 JObject obj = JObject.Parse(response);
@@ -560,7 +611,24 @@ namespace maFileTool.Core
                         var link = Regex.Match(message.HtmlBody, "store([.])steampowered([.])com([\\/])phone([\\/])ConfirmEmailForAdd([?])stoken=([^\"]+)").Groups[0].Value;
                         if (string.IsNullOrEmpty(link)) continue;
 
-                        new WebClient().DownloadString("https://" + link);
+                        WebClient webClient = new WebClient();
+                        string s = webClient.DownloadString("https://" + link);
+                        
+                        //Unable to add phone
+                        //There have been too many attempts to add a phone number to this account. Please only add phones that you own and try again in 1 week.
+
+                        if (s.Contains("1 week")) 
+                        {
+                            emailVerify = false;
+
+                            string time = DateTime.Now.AddDays(7).ToString("dd.MM.yy HH:mm");
+
+                            if (settings.Mode == "EXCEL")
+                                SaveToExcel(time, time);
+                            Log("Too many attempts to add a phone number to this account. Please try again in 1 week.");
+                            break;
+                        }
+
                         Log("Email confirmed.");
                         break;
                     }
@@ -616,8 +684,9 @@ namespace maFileTool.Core
 
         private void Log(string message) 
         {
+            string time = DateTime.Now.ToString("HH:mm");
             int index = Program.accounts.FindIndex(t => t.Login == _login);
-            Console.WriteLine($"[{_login}][{(index + 1)}/{Program.accounts.Count}] - {message}"); 
+            Console.WriteLine($"[{time}][{_login}][{(index + 1)}/{Program.accounts.Count}] - {message}"); 
         }
         private static void LogToFile(string message) => File.AppendAllText("result.log", message + "\n");
     }
