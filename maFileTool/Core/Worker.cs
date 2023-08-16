@@ -365,7 +365,7 @@ namespace maFileTool.Core
 
                         case AuthenticatorLinker.LinkResult.GeneralFailure:
                             Log("Error adding your authenticator.");
-                            string time = DateTime.Now.AddMinutes(30).ToString("dd.MM.yy HH:mm");
+                            string time = DateTime.Now.AddMinutes(15).ToString("dd.MM.yy HH:mm");
                             if (settings.Mode == "EXCEL")
                                 SaveToExcel(time, time);
                             return;
@@ -387,7 +387,7 @@ namespace maFileTool.Core
                         Log("SMS not received");
                         smsService.SetStatus(_activationId, "-1"); //Отмена активации
                         //DoWork();
-                        string time = DateTime.Now.AddMinutes(30).ToString("dd.MM.yy HH:mm");
+                        string time = DateTime.Now.AddMinutes(15).ToString("dd.MM.yy HH:mm");
                         if (settings.Mode == "EXCEL")
                             SaveToExcel(time, time);
                         return;
@@ -408,7 +408,7 @@ namespace maFileTool.Core
 
                         case AuthenticatorLinker.FinalizeResult.GeneralFailure:
                             Log("Steam GeneralFailture :(");
-                            string time = DateTime.Now.AddMinutes(30).ToString("dd.MM.yy HH:mm");
+                            string time = DateTime.Now.AddMinutes(15).ToString("dd.MM.yy HH:mm");
                             if (settings.Mode == "EXCEL")
                                 SaveToExcel(time, time);
                             return;

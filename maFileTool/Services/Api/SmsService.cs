@@ -145,13 +145,18 @@ namespace maFileTool.Services.Api
             parameters["action"] = "setStatus";
             parameters["id"] = id;
 
-            if (BaseUrl.Contains("sms-activation-service")) 
+            if (BaseUrl.Contains(Core.Worker.settings.SmsActivationServiceBaseUrl))
             {
-                if(status == "-1") parameters["status"] = "8";
+                if (status == "-1") parameters["status"] = "8";
                 else parameters["status"] = status;
                 parameters["lang"] = "ru";
             }
-            else if (BaseUrl.Contains("onlinesim"))
+            else if (BaseUrl.Contains(Core.Worker.settings.GiveSmsBaseUrl)) 
+            {
+                if (status == "-1") parameters["status"] = "8";
+                else parameters["status"] = status;
+            }
+            else if (BaseUrl.Contains(Core.Worker.settings.OnlineSimBaseUrl))
             {
                 if (status == "-1") parameters["status"] = "6";
                 else parameters["status"] = status;
