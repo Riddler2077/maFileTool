@@ -30,5 +30,6 @@
         public string MailServer { get; set; } = string.Empty;
         public string MailPort { get; set; } = "993";
         public string MailProtocol { get; set; } = "IMAP";
+        public string UseSSL { get; set; } = "true";
     }
 }

@@ -366,7 +366,7 @@ namespace maFileTool.Core
                         case AuthenticatorLinker.LinkResult.GeneralFailure:
                             Log("Error adding your authenticator.");
                             string time = DateTime.Now.AddMinutes(15).ToString("dd.MM.yy HH:mm");
-                            if (settings.Mode == "EXCEL")
+                            if (settings.Mode.ToLower() == "excel")
                                 SaveToExcel(time, time);
                             return;
                     }
@@ -388,7 +388,7 @@ namespace maFileTool.Core
                         smsService.SetStatus(_activationId, "-1"); //Отмена активации
                         //DoWork();
                         string time = DateTime.Now.AddMinutes(15).ToString("dd.MM.yy HH:mm");
-                        if (settings.Mode == "EXCEL")
+                        if (settings.Mode.ToLower() == "excel")
                             SaveToExcel(time, time);
                         return;
                     }
@@ -409,7 +409,7 @@ namespace maFileTool.Core
                         case AuthenticatorLinker.FinalizeResult.GeneralFailure:
                             Log("Steam GeneralFailture :(");
                             string time = DateTime.Now.AddMinutes(15).ToString("dd.MM.yy HH:mm");
-                            if (settings.Mode == "EXCEL")
+                            if (settings.Mode.ToLower() == "excel")
                                 SaveToExcel(time, time);
                             return;
                     }
@@ -422,7 +422,7 @@ namespace maFileTool.Core
                 LogToFile($"{_login}:{_password}:{_emailLogin}:{_emailPassword}:{_phoneNumber}:{linker.LinkedAccount.RevocationCode}");
 
                 smsService.SetStatus(_activationId, "6"); //Код верный, завершение активации
-                if (settings.Mode == "EXCEL")
+                if (settings.Mode.ToLower() == "excel")
                     SaveToExcel(_phoneNumber, _revocationCode);
             }
             catch (Exception e)
@@ -536,12 +536,12 @@ namespace maFileTool.Core
 
             var loginCode = string.Empty;
 
-            if (settings.MailProtocol == "IMAP")
+            if (settings.MailProtocol.ToLower() == "imap")
             {
                 using (var client = new ImapClient())
                 {
                     client.CheckCertificateRevocation = false;
-                    client.Connect(host, port, true);
+                    client.Connect(host, port, Convert.ToBoolean(settings.UseSSL.ToLower()));
                     client.Authenticate(_emailLogin, _emailPassword);
 
                     var inbox = client.Inbox;
@@ -560,13 +560,13 @@ namespace maFileTool.Core
                     }
                 }
             }
-            else if (settings.MailProtocol == "POP3")
+            else if (settings.MailProtocol.ToLower() == "pop3")
             {
                 //Not tested
                 using (var client = new Pop3Client()) 
                 {
                     client.CheckCertificateRevocation = false;
-                    client.Connect(host, port, true);
+                    client.Connect(host, port, Convert.ToBoolean(settings.UseSSL.ToLower()));
                     client.Authenticate(_emailLogin, _emailPassword);
 
                     int count = client.GetMessageCount();
@@ -594,12 +594,12 @@ namespace maFileTool.Core
         {
             Thread.Sleep(10000);
 
-            if (settings.MailProtocol == "IMAP")
+            if (settings.MailProtocol.ToLower() == "imap")
             {
                 using (var client = new ImapClient())
                 {
                     client.CheckCertificateRevocation = false;
-                    client.Connect(host, port, true);
+                    client.Connect(host, port, Convert.ToBoolean(settings.UseSSL.ToLower()));
                     client.Authenticate(_emailLogin, _emailPassword);
 
                     var inbox = client.Inbox;
@@ -623,7 +623,7 @@ namespace maFileTool.Core
 
                             string time = DateTime.Now.AddDays(7).ToString("dd.MM.yy HH:mm");
 
-                            if (settings.Mode == "EXCEL")
+                            if (settings.Mode.ToLower() == "excel")
                                 SaveToExcel(time, time);
                             Log("Too many attempts to add a phone number to this account. Please try again in 1 week.");
                             break;
@@ -636,13 +636,13 @@ namespace maFileTool.Core
                     client.Disconnect(true);
                 }
             }
-            else if (settings.MailProtocol == "POP3") 
+            else if (settings.MailProtocol.ToLower() == "pop3") 
             {
                 //Not tested
                 using (var client = new Pop3Client())
                 {
                     client.CheckCertificateRevocation = false;
-                    client.Connect(host, port, true);
+                    client.Connect(host, port, Convert.ToBoolean(settings.UseSSL.ToLower()));
                     client.Authenticate(_emailLogin, _emailPassword);
 
                     int count = client.GetMessageCount();
