@@ -544,14 +544,14 @@ namespace maFileTool.Core
                     try
                     {
                         client.Connect(host, port, Convert.ToBoolean(settings.UseSSL.ToLower()));
+                        client.Authenticate(_emailLogin, _emailPassword);
                     }
                     catch (MailKit.Security.AuthenticationException ex)
                     {
-                        Log(ex.ToString());
+                        Log($"Email error => {ex.Message.ToString()}");
                         emailVerify = false;
                         return loginCode;
                     }
-                    client.Authenticate(_emailLogin, _emailPassword);
 
                     var inbox = client.Inbox;
                     inbox.Open(FolderAccess.ReadOnly);
@@ -578,14 +578,14 @@ namespace maFileTool.Core
                     try
                     {
                         client.Connect(host, port, Convert.ToBoolean(settings.UseSSL.ToLower()));
+                        client.Authenticate(_emailLogin, _emailPassword);
                     }
                     catch (MailKit.Security.AuthenticationException ex)
                     {
-                        Log(ex.ToString());
+                        Log($"Email error => {ex.Message.ToString()}");
                         emailVerify = false;
                         return loginCode;
                     }
-                    client.Authenticate(_emailLogin, _emailPassword);
 
                     int count = client.GetMessageCount();
                     for (int i = count - 1; i >= 0; i--) 
@@ -620,14 +620,14 @@ namespace maFileTool.Core
                     try
                     {
                         client.Connect(host, port, Convert.ToBoolean(settings.UseSSL.ToLower()));
+                        client.Authenticate(_emailLogin, _emailPassword);
                     }
                     catch (MailKit.Security.AuthenticationException ex) 
                     {
-                        Log(ex.ToString());
+                        Log($"Email error => {ex.Message.ToString()}");
                         emailVerify = false;
                         return;
                     }
-                    client.Authenticate(_emailLogin, _emailPassword);
 
                     var inbox = client.Inbox;
                     inbox.Open(FolderAccess.ReadOnly);
@@ -672,14 +672,14 @@ namespace maFileTool.Core
                     try
                     {
                         client.Connect(host, port, Convert.ToBoolean(settings.UseSSL.ToLower()));
+                        client.Authenticate(_emailLogin, _emailPassword);
                     }
                     catch (MailKit.Security.AuthenticationException ex)
                     {
-                        Log(ex.ToString());
+                        Log($"Email error => {ex.Message.ToString()}");
                         emailVerify = false;
                         return;
                     }
-                    client.Authenticate(_emailLogin, _emailPassword);
 
                     int count = client.GetMessageCount();
                     for (int i = count - 1; i >= 0; i--)
