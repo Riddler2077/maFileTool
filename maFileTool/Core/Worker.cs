@@ -552,6 +552,12 @@ namespace maFileTool.Core
                         emailVerify = false;
                         return loginCode;
                     }
+                    catch (MailKit.Security.SslHandshakeException ex)
+                    {
+                        Log($"Email error => {ex.Message.ToString()}");
+                        emailVerify = false;
+                        return loginCode;
+                    }
 
                     var inbox = client.Inbox;
                     inbox.Open(FolderAccess.ReadOnly);
@@ -581,6 +587,12 @@ namespace maFileTool.Core
                         client.Authenticate(_emailLogin, _emailPassword);
                     }
                     catch (MailKit.Security.AuthenticationException ex)
+                    {
+                        Log($"Email error => {ex.Message.ToString()}");
+                        emailVerify = false;
+                        return loginCode;
+                    }
+                    catch (MailKit.Security.SslHandshakeException ex)
                     {
                         Log($"Email error => {ex.Message.ToString()}");
                         emailVerify = false;
@@ -622,7 +634,13 @@ namespace maFileTool.Core
                         client.Connect(host, port, Convert.ToBoolean(settings.UseSSL.ToLower()));
                         client.Authenticate(_emailLogin, _emailPassword);
                     }
-                    catch (MailKit.Security.AuthenticationException ex) 
+                    catch (MailKit.Security.AuthenticationException ex)
+                    {
+                        Log($"Email error => {ex.Message.ToString()}");
+                        emailVerify = false;
+                        return;
+                    }
+                    catch (MailKit.Security.SslHandshakeException ex) 
                     {
                         Log($"Email error => {ex.Message.ToString()}");
                         emailVerify = false;
@@ -675,6 +693,12 @@ namespace maFileTool.Core
                         client.Authenticate(_emailLogin, _emailPassword);
                     }
                     catch (MailKit.Security.AuthenticationException ex)
+                    {
+                        Log($"Email error => {ex.Message.ToString()}");
+                        emailVerify = false;
+                        return;
+                    }
+                    catch (MailKit.Security.SslHandshakeException ex)
                     {
                         Log($"Email error => {ex.Message.ToString()}");
                         emailVerify = false;
