@@ -78,11 +78,11 @@ namespace maFileTool
 
             #endregion
 
-            string mode = Worker.settings.Mode;
+            string mode = Worker.settings.Mode.ToLower();
 
             switch (mode)
             {
-                case "EXCEL":
+                case "excel":
                     accounts = new Excel().ReadFromExcel(steam);
                     accounts.RemoveAll(t => String.IsNullOrEmpty(t.Login) || t.Login == "Логин" || t.Login == "Login");
 
@@ -115,7 +115,7 @@ namespace maFileTool
                     Console.ReadLine();
                     Console.SetCursorPosition(0, Console.CursorTop - 1);
                     break;
-                case "TXT":
+                case "txt":
                     string[] acs = System.IO.File.ReadAllLines(steamtxt);
                     acs = acs.Where(x => !string.IsNullOrEmpty(x)).ToArray();
                     acs = acs.Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();

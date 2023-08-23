@@ -541,11 +541,20 @@ namespace maFileTool.Core
                 using (var client = new ImapClient())
                 {
                     client.CheckCertificateRevocation = false;
-                    client.Connect(host, port, Convert.ToBoolean(settings.UseSSL.ToLower()));
+                    try
+                    {
+                        client.Connect(host, port, Convert.ToBoolean(settings.UseSSL.ToLower()));
+                    }
+                    catch (MailKit.Security.AuthenticationException ex)
+                    {
+                        Log(ex.ToString());
+                        emailVerify = false;
+                        return loginCode;
+                    }
                     client.Authenticate(_emailLogin, _emailPassword);
 
                     var inbox = client.Inbox;
-                    inbox.Open(FolderAccess.ReadWrite);
+                    inbox.Open(FolderAccess.ReadOnly);
 
                     for (var i = inbox.Count - 1; i >= 0; i--)
                     {
@@ -566,7 +575,16 @@ namespace maFileTool.Core
                 using (var client = new Pop3Client()) 
                 {
                     client.CheckCertificateRevocation = false;
-                    client.Connect(host, port, Convert.ToBoolean(settings.UseSSL.ToLower()));
+                    try
+                    {
+                        client.Connect(host, port, Convert.ToBoolean(settings.UseSSL.ToLower()));
+                    }
+                    catch (MailKit.Security.AuthenticationException ex)
+                    {
+                        Log(ex.ToString());
+                        emailVerify = false;
+                        return loginCode;
+                    }
                     client.Authenticate(_emailLogin, _emailPassword);
 
                     int count = client.GetMessageCount();
@@ -599,11 +617,20 @@ namespace maFileTool.Core
                 using (var client = new ImapClient())
                 {
                     client.CheckCertificateRevocation = false;
-                    client.Connect(host, port, Convert.ToBoolean(settings.UseSSL.ToLower()));
+                    try
+                    {
+                        client.Connect(host, port, Convert.ToBoolean(settings.UseSSL.ToLower()));
+                    }
+                    catch (MailKit.Security.AuthenticationException ex) 
+                    {
+                        Log(ex.ToString());
+                        emailVerify = false;
+                        return;
+                    }
                     client.Authenticate(_emailLogin, _emailPassword);
 
                     var inbox = client.Inbox;
-                    inbox.Open(FolderAccess.ReadWrite);
+                    inbox.Open(FolderAccess.ReadOnly);
 
                     for (var i = inbox.Count - 1; i >= 0; i--)
                     {
@@ -642,7 +669,16 @@ namespace maFileTool.Core
                 using (var client = new Pop3Client())
                 {
                     client.CheckCertificateRevocation = false;
-                    client.Connect(host, port, Convert.ToBoolean(settings.UseSSL.ToLower()));
+                    try
+                    {
+                        client.Connect(host, port, Convert.ToBoolean(settings.UseSSL.ToLower()));
+                    }
+                    catch (MailKit.Security.AuthenticationException ex)
+                    {
+                        Log(ex.ToString());
+                        emailVerify = false;
+                        return;
+                    }
                     client.Authenticate(_emailLogin, _emailPassword);
 
                     int count = client.GetMessageCount();
