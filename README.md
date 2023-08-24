@@ -3,7 +3,7 @@
 
 <p align="center">
   <img src="https://github.com/Riddler2077/maFileTool/blob/master/icon.ico" width="150" alt="img">
-  <h1 align="center"><a href="https://github.com/Riddler2077/maFileTool/releases/tag/maFileTool1.0.3" target="_blank">Download here</a></h1>
+  <h1 align="center"><a href="https://github.com/Riddler2077/maFileTool/releases/tag/maFileTool1.0.6" target="_blank">Download here</a></h1>
 </p>
 
 What is it:
