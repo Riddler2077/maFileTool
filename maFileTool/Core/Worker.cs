@@ -30,6 +30,7 @@ using System.Diagnostics;
 using SteamKit2;
 using SteamKit2.Internal;
 using System.Security.Policy;
+using static SteamKit2.Internal.CPublishedFile_AreFilesInSubscriptionList_Response;
 
 namespace maFileTool.Core
 {
@@ -365,9 +366,7 @@ namespace maFileTool.Core
 
                         case AuthenticatorLinker.LinkResult.GeneralFailure:
                             Log("Error adding your authenticator.");
-                            string time = DateTime.Now.AddMinutes(15).ToString("dd.MM.yy HH:mm");
-                            if (settings.Mode.ToLower() == "excel")
-                                SaveToExcel(time, time);
+                            SaveAccountData();
                             return;
                     }
                 } // End while loop checking for AwaitingFinalization
@@ -386,10 +385,7 @@ namespace maFileTool.Core
                     {
                         Log("SMS not received");
                         smsService.SetStatus(_activationId, "-1"); //Отмена активации
-                        //DoWork();
-                        string time = DateTime.Now.AddMinutes(15).ToString("dd.MM.yy HH:mm");
-                        if (settings.Mode.ToLower() == "excel")
-                            SaveToExcel(time, time);
+                        SaveAccountData();
                         return;
                     }
 
@@ -408,9 +404,7 @@ namespace maFileTool.Core
 
                         case AuthenticatorLinker.FinalizeResult.GeneralFailure:
                             Log("Steam GeneralFailture :(");
-                            string time = DateTime.Now.AddMinutes(15).ToString("dd.MM.yy HH:mm");
-                            if (settings.Mode.ToLower() == "excel")
-                                SaveToExcel(time, time);
+                            SaveAccountData();
                             return;
                     }
                 }
@@ -422,8 +416,7 @@ namespace maFileTool.Core
                 LogToFile($"{_login}:{_password}:{_emailLogin}:{_emailPassword}:{_phoneNumber}:{linker.LinkedAccount.RevocationCode}");
 
                 smsService.SetStatus(_activationId, "6"); //Код верный, завершение активации
-                if (settings.Mode.ToLower() == "excel")
-                    SaveToExcel(_phoneNumber, _revocationCode);
+                SaveAccountData(_phoneNumber, _revocationCode);
             }
             catch (Exception e)
             {
@@ -665,11 +658,8 @@ namespace maFileTool.Core
                         if (s.Contains("1 week")) 
                         {
                             emailVerify = false;
-
                             string time = DateTime.Now.AddDays(7).ToString("dd.MM.yy HH:mm");
-
-                            if (settings.Mode.ToLower() == "excel")
-                                SaveToExcel(time, time);
+                            SaveAccountData(string.Empty, string.Empty, time);
                             Log("Too many attempts to add a phone number to this account. Please try again in 1 week.");
                             break;
                         }
@@ -726,6 +716,38 @@ namespace maFileTool.Core
             Thread.Sleep(2000);
         }
 
+        private void SaveAccountData(string phoneNumber = "", string revocationCode = "", string week = "")
+        {
+            string time = DateTime.Now.AddMinutes(15).ToString("dd.MM.yy HH:mm");
+            if (!string.IsNullOrEmpty(week)) time = week;
+
+            string mode = settings.Mode.ToLower();
+            switch (mode)
+            {
+                case "txt":
+                    List<string> list = File.ReadAllLines(Program.steamtxt).ToList();
+                    string line = list.FirstOrDefault(t => t.Contains($"{_login}:"));
+                    int number = (list.IndexOf(line) + 1);
+                    if (string.IsNullOrEmpty(phoneNumber) && string.IsNullOrEmpty(revocationCode))
+                    {
+                        line = $"{line.Split(':')[0]}:{line.Split(':')[1]}:{line.Split(':')[2]}:{line.Split(':')[3]}:{time}";
+                        LineChanger(line, Program.steamtxt, number);
+                    }
+                    else 
+                    {
+                        line = $"{line.Split(':')[0]}:{line.Split(':')[1]}:{line.Split(':')[2]}:{line.Split(':')[3]}:{phoneNumber}:{revocationCode}";
+                        LineChanger(line, Program.steamtxt, number);
+                    }  
+                    break;
+                case "excel":
+                    if(string.IsNullOrEmpty(phoneNumber) && string.IsNullOrEmpty(revocationCode))
+                        SaveToExcel(time, time);
+                    else
+                        SaveToExcel(phoneNumber, revocationCode);
+                    break;
+            }
+        }
+
         private static string FilterPhoneNumber(string phoneNumber)
         {
             phoneNumber = phoneNumber.Replace("-", string.Empty).Replace("(", string.Empty).Replace(")", string.Empty);
@@ -749,5 +771,12 @@ namespace maFileTool.Core
             Console.WriteLine($"[{time}][{_login}][{(index + 1)}/{Program.accounts.Count}] - {message}"); 
         }
         private static void LogToFile(string message) => File.AppendAllText("result.log", message + "\n");
+
+        private void LineChanger(string newText, string fileName, int lineToEdit)
+        {
+            string[] array = File.ReadAllLines(fileName);
+            array[lineToEdit - 1] = newText;
+            File.WriteAllLines(fileName, array);
+        }
     }
 }
