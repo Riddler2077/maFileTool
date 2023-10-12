@@ -8,29 +8,16 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using System.Threading.Tasks;
 using maFileTool.Model;
 using maFileTool.Services.Api;
-using OfficeOpenXml.FormulaParsing.LexicalAnalysis;
 using System.Collections.Specialized;
-using System.Diagnostics.Eventing.Reader;
 using maFileTool.Services;
-using System.Collections;
-using System.Net.Http;
-using System.Security.Cryptography;
-using System.Drawing;
-using Org.BouncyCastle.Asn1.X509;
-using System.Drawing.Imaging;
 using maFileTool.Services.SteamAuth;
 using SteamKit2.Authentication;
-using System.Diagnostics;
 using SteamKit2;
 using SteamKit2.Internal;
-using System.Security.Policy;
-using static SteamKit2.Internal.CPublishedFile_AreFilesInSubscriptionList_Response;
 
 namespace maFileTool.Core
 {
@@ -50,8 +37,12 @@ namespace maFileTool.Core
         private int priorityCounter = 0;
         private bool emailVerify = true;
 
+        public static Worker Instance;
+
         public Worker(string login, string password, string emailLogin, string emailPassword)
         {
+            Instance = this;
+
             _login = login;
             _password = password;
             _emailLogin = emailLogin;
@@ -523,7 +514,7 @@ namespace maFileTool.Core
             }
         }
 
-        private string GetLoginCodeFromEmail(string host, int port)
+        public string GetLoginCodeFromEmail(string host, int port)
         {
             Thread.Sleep(10000);
 
@@ -764,7 +755,7 @@ namespace maFileTool.Core
             File.WriteAllText(String.Format("{0}\\{1}", path, filename), jsonAccount);
         }
 
-        private void Log(string message) 
+        public void Log(string message) 
         {
             string time = DateTime.Now.ToString("HH:mm");
             int index = Program.accounts.FindIndex(t => t.Login == _login);

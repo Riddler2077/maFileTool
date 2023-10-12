@@ -1,4 +1,5 @@
-﻿using SteamKit2.Authentication;
+﻿using maFileTool.Core;
+using SteamKit2.Authentication;
 using System;
 using System.Threading.Tasks;
 
@@ -39,15 +40,15 @@ namespace maFileTool.Services.SteamAuth
 
         public Task<string> GetEmailCodeAsync(string email, bool previousCodeWasIncorrect)
         {
-            string message = "Enter the code sent to your email:";
+            Worker.Instance.Log("Waiting login code from email.");
+            /*string message = "Enter the code sent to your email:";
             if (previousCodeWasIncorrect)
             {
                 message = "The code you provided was invalid. Enter the code sent to your email:";
-            }
+            }*/
 
-            //InputForm emailForm = new InputForm(message);
-            //emailForm.ShowDialog();
-            return Task.FromResult("");//emailForm.txtBox.Text);
+            string loginCode = Worker.Instance.GetLoginCodeFromEmail(Worker.settings.MailServer, Int32.Parse(Worker.settings.MailPort));
+            return Task.FromResult(loginCode);
         }
     }
 }

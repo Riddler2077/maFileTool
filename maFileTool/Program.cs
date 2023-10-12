@@ -1,24 +1,10 @@
 ﻿using maFileTool.Core;
 using maFileTool.Model;
 using maFileTool.Services;
-using maFileTool.Services.Api;
-using maFileTool.Services.SteamAuth;
-using Newtonsoft.Json;
-using OfficeOpenXml.Style;
 using System;
-using System.CodeDom;
-using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Net;
-using System.Security.Policy;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
-using System.Xml.Linq;
-using static SteamKit2.GC.Dota.Internal.CMsgDOTADPCSeasonResults;
-using static System.Net.WebRequestMethods;
 
 namespace maFileTool
 {
