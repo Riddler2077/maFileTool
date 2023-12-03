@@ -415,6 +415,164 @@ namespace maFileTool.Core
             }
         }
 
+        public void DoWorkEmail() 
+        {
+            Log("Authorization.");
+
+            #region Authorization
+
+            string username = _login;
+            string password = _password;
+
+            // Start a new SteamClient instance
+            SteamClient steamClient = new SteamClient();
+
+            // Connect to Steam
+            steamClient.Connect();
+
+            // Really basic way to wait until Steam is connected
+            while (!steamClient.IsConnected)
+                Thread.Sleep(500);
+
+            // Create a new auth session
+            CredentialsAuthSession authSession;
+
+            try
+            {
+                AuthSessionDetails authSessionDetails = new AuthSessionDetails();
+                authSessionDetails.Username = username;
+                authSessionDetails.Password = password;
+                authSessionDetails.IsPersistentSession = false;
+                authSessionDetails.PlatformType = EAuthTokenPlatformType.k_EAuthTokenPlatformType_MobileApp;
+                authSessionDetails.ClientOSType = EOSType.Android9;
+                authSessionDetails.Authenticator = new UserFormAuthenticator(new SteamGuardAccount());
+
+                authSession = AsyncHelpers.RunSync<CredentialsAuthSession>(() => steamClient.Authentication.BeginAuthSessionViaCredentialsAsync(authSessionDetails));
+            }
+            catch (Exception ex)
+            {
+                Log("Steam Login Error");
+                return;
+            }
+
+            // Starting polling Steam for authentication response
+            AuthPollResult pollResponse;
+            try
+            {
+                pollResponse = AsyncHelpers.RunSync<AuthPollResult>(() => authSession.PollingWaitForResultAsync());
+            }
+            catch (Exception ex)
+            {
+                Log("Steam Login Error 2");
+                return;
+            }
+
+            // Build a SessionData object
+            SessionData sessionData = new SessionData()
+            {
+                SteamID = authSession.SteamID.ConvertToUInt64(),
+                AccessToken = pollResponse.AccessToken,
+                RefreshToken = pollResponse.RefreshToken,
+            };
+
+            sessionData.SessionID = sessionData.GetCookies().GetCookies(new Uri("http://steamcommunity.com")).Cast<Cookie>().First(c => c.Name == "sessionid").Value;
+
+            #endregion
+
+            Log("Steam account login succeeded.");
+
+            // Begin linking mobile authenticator
+            AuthenticatorLinker linker = new AuthenticatorLinker(sessionData);
+
+            AuthenticatorLinker.LinkResult linkResponse = AuthenticatorLinker.LinkResult.GeneralFailure;
+            while (linkResponse != AuthenticatorLinker.LinkResult.AwaitingFinalization)
+            {
+                try
+                {
+                    linkResponse = AsyncHelpers.RunSync<AuthenticatorLinker.LinkResult>(() => linker.AddAuthenticator());
+                }
+                catch (Exception ex)
+                {
+                    Log($"Error adding your authenticator: {ex.Message}");
+                    return;
+                }
+
+                switch (linkResponse)
+                {
+                    case AuthenticatorLinker.LinkResult.MustProvidePhoneNumber:
+                        break;
+
+                    case AuthenticatorLinker.LinkResult.AuthenticatorPresent:
+                        Log("This account already has an authenticator linked. You must remove that authenticator to add SDA as your authenticator.");
+                        return;
+
+                    case AuthenticatorLinker.LinkResult.FailureAddingPhone:
+                        Log("Failed to add your phone number. Please try again or use a different phone number.");
+                        linker.PhoneNumber = null;
+                        break;
+
+                    case AuthenticatorLinker.LinkResult.MustRemovePhoneNumber:
+                        linker.PhoneNumber = null;
+                        break;
+
+                    case AuthenticatorLinker.LinkResult.MustConfirmEmail:
+                        break;
+
+                    case AuthenticatorLinker.LinkResult.GeneralFailure:
+                        Log("Error adding your authenticator.");
+                        SaveAccountData();
+                        return;
+                }
+            }
+            // End while loop checking for AwaitingFinalization
+
+            Log("Waiting authenticator code from email.");
+
+            var finalizeResponse = AuthenticatorLinker.FinalizeResult.GeneralFailure;
+            while (finalizeResponse != AuthenticatorLinker.FinalizeResult.Success)
+            {
+                var authenticatorCode = GetAuthenticatorCodeFromEmail(settings.MailServer, Int32.Parse(settings.MailPort));
+
+                if (string.IsNullOrEmpty(authenticatorCode))
+                {
+                    Log("Authenticator code not received");
+                    SaveAccountData();
+                    return;
+                }
+
+                Log("Sending Authenticator code.");
+
+                finalizeResponse = AsyncHelpers.RunSync<AuthenticatorLinker.FinalizeResult>(() => linker.FinalizeAddAuthenticator(authenticatorCode));
+
+                switch (finalizeResponse)
+                {
+                    case AuthenticatorLinker.FinalizeResult.BadSMSCode:
+                        Log("Code incorrect");
+                        return;
+
+                    case AuthenticatorLinker.FinalizeResult.UnableToGenerateCorrectCodes:
+                        Log("Unable to generate the proper codes to finalize this authenticator. The authenticator should not have been linked. In the off-chance it was, please write down your revocation code, as this is the last chance to see it: " + linker.LinkedAccount.RevocationCode);
+                        return;
+
+                    case AuthenticatorLinker.FinalizeResult.GeneralFailure:
+                        Log("Steam GeneralFailture :(");
+                        SaveAccountData();
+                        return;
+                }
+            }
+
+            Log("Steam Guard successfully linked.");
+
+            _phoneNumber = "Email";
+            _revocationCode = linker.LinkedAccount.RevocationCode;
+
+            SaveAccount(linker.LinkedAccount);
+            Log($"{_login}:{_password}:{_emailLogin}:{_emailPassword}:{_phoneNumber}:{linker.LinkedAccount.RevocationCode}");
+            LogToFile($"{_login}:{_password}:{_emailLogin}:{_emailPassword}:{_phoneNumber}:{linker.LinkedAccount.RevocationCode}");
+
+            SaveAccountData(_phoneNumber, _revocationCode);
+        }
+
         public bool PhoneNumberOkay(string phoneNumber)
         {
             if (phoneNumber == null || phoneNumber.Length == 0) return false;
@@ -550,6 +708,8 @@ namespace maFileTool.Core
                     {
                         var message = inbox.GetMessage(i);
 
+                        if (message.From.ToString() != "\"Steam Support\" <noreply@steampowered.com>") continue;
+
                         var code = Regex.Match(message.HtmlBody, "class=([\"])title-48 c-blue1 fw-b a-center([^>]+)([>])([^<]+)").Groups[4].Value;
                         if (string.IsNullOrEmpty(code)) continue;
 
@@ -587,21 +747,111 @@ namespace maFileTool.Core
                     for (int i = count - 1; i >= 0; i--) 
                     {
                         var message = client.GetMessage(i);
-                        if (message.Subject.Contains("store.steampowered.com")) 
-                        {
-                            var code = Regex.Match(message.HtmlBody, "class=([\"])title-48 c-blue1 fw-b a-center([^>]+)([>])([^<]+)").Groups[4].Value;
-                            if (string.IsNullOrEmpty(code)) continue;
 
-                            loginCode = code.Trim();
-                            Log($"Login code: {loginCode}");
-                            client.Disconnect(true);
-                            break;
-                        }
+                        if (message.From.ToString() != "\"Steam Support\" <noreply@steampowered.com>") continue;
+
+                        var code = Regex.Match(message.HtmlBody, "class=([\"])title-48 c-blue1 fw-b a-center([^>]+)([>])([^<]+)").Groups[4].Value;
+                        if (string.IsNullOrEmpty(code)) continue;
+
+                        loginCode = code.Trim();
+                        Log($"Login code: {loginCode}");
+                        break;
                     }
                 }
             }
 
             return loginCode;
+        }
+
+        public string GetAuthenticatorCodeFromEmail(string host, int port)
+        {
+            Thread.Sleep(10000);
+
+            var authenticatorCode = string.Empty;
+
+            if (settings.MailProtocol.ToLower() == "imap")
+            {
+                using (var client = new ImapClient())
+                {
+                    client.CheckCertificateRevocation = false;
+                    try
+                    {
+                        client.Connect(host, port, Convert.ToBoolean(settings.UseSSL.ToLower()));
+                        client.Authenticate(_emailLogin, _emailPassword);
+                    }
+                    catch (MailKit.Security.AuthenticationException ex)
+                    {
+                        Log($"Email error => {ex.Message.ToString()}");
+                        emailVerify = false;
+                        return authenticatorCode;
+                    }
+                    catch (MailKit.Security.SslHandshakeException ex)
+                    {
+                        Log($"Email error => {ex.Message.ToString()}");
+                        emailVerify = false;
+                        return authenticatorCode;
+                    }
+
+                    var inbox = client.Inbox;
+                    inbox.Open(FolderAccess.ReadOnly);
+
+                    for (var i = inbox.Count - 1; i >= 0; i--)
+                    {
+                        var message = inbox.GetMessage(i);
+
+                        if (message.From.ToString() != "\"Steam Team\" <noreply@steampowered.com>") continue;
+
+                        var code = Regex.Match(message.HtmlBody, "class=([\"])title-48 c-blue1 fw-b a-center([^>]+)([>])([^<]+)").Groups[4].Value;
+                        if (string.IsNullOrEmpty(code)) continue;
+
+                        authenticatorCode = code.Trim();
+                        Log($"Authenticator code: {authenticatorCode}");
+                        break;
+                    }
+                }
+            }
+            else if (settings.MailProtocol.ToLower() == "pop3")
+            {
+                //Not tested
+                using (var client = new Pop3Client())
+                {
+                    client.CheckCertificateRevocation = false;
+                    try
+                    {
+                        client.Connect(host, port, Convert.ToBoolean(settings.UseSSL.ToLower()));
+                        client.Authenticate(_emailLogin, _emailPassword);
+                    }
+                    catch (MailKit.Security.AuthenticationException ex)
+                    {
+                        Log($"Email error => {ex.Message.ToString()}");
+                        emailVerify = false;
+                        return authenticatorCode;
+                    }
+                    catch (MailKit.Security.SslHandshakeException ex)
+                    {
+                        Log($"Email error => {ex.Message.ToString()}");
+                        emailVerify = false;
+                        return authenticatorCode;
+                    }
+
+                    int count = client.GetMessageCount();
+                    for (int i = count - 1; i >= 0; i--)
+                    {
+                        var message = client.GetMessage(i);
+
+                        if (message.From.ToString() != "\"Steam Team\" <noreply@steampowered.com>") continue;
+
+                        var code = Regex.Match(message.HtmlBody, "class=([\"])title-48 c-blue1 fw-b a-center([^>]+)([>])([^<]+)").Groups[4].Value;
+                        if (string.IsNullOrEmpty(code)) continue;
+
+                        authenticatorCode = code.Trim();
+                        Log($"Authenticator code: {authenticatorCode}");
+                        break;
+                    }
+                }
+            }
+
+            return authenticatorCode;
         }
 
         private void ConfirmEmailForAdd(string host, int port)
@@ -746,6 +996,7 @@ namespace maFileTool.Core
                 phoneNumber = String.Format("+{0}", phoneNumber);
             return phoneNumber;
         }
+
         private static void SaveAccount(SteamGuardAccount account)
         {
             var filename = account.Session.SteamID.ToString() + ".maFile";
@@ -761,6 +1012,7 @@ namespace maFileTool.Core
             int index = Program.accounts.FindIndex(t => t.Login == _login);
             Console.WriteLine($"[{time}][{_login}][{(index + 1)}/{Program.accounts.Count}] - {message}"); 
         }
+
         private static void LogToFile(string message) => File.AppendAllText("result.log", message + "\n");
 
         private void LineChanger(string newText, string fileName, int lineToEdit)

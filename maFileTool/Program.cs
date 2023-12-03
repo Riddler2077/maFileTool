@@ -23,7 +23,7 @@ namespace maFileTool
 
         static void Main(string[] args)
         {
-            string tedonstore = "Powered by tedonstore.com";
+            string tedonstore = "Powered by Baby Yoda";
             Console.WriteLine(String.Format("{0," + ((Console.WindowWidth / 2) + (tedonstore.Length / 2)) + "}", tedonstore));
 
             #region Checks
@@ -79,15 +79,15 @@ namespace maFileTool
             {
                 DoWork();
 
-                if (quit) { Console.WriteLine("Exit due to an error. Goodbye."); break; }
+                if (quit) { Console.WriteLine("Exit due to an error. This is the way."); break; }
                 else
                 {
                     TimerRendering("mins");
                     accounts.Clear();
-                    Scanning();
+                    //Scanning();
                     if (accounts.Count() <= 0)
                     {
-                        Console.WriteLine("All tasks have been completed successfully. Goodbye.");
+                        Console.WriteLine("All tasks have been completed successfully. This is the way.");
                         break;
                     }
                 }
@@ -102,7 +102,8 @@ namespace maFileTool
                 secs = false;
                 mins = false;
 
-                new Worker(account.Login, account.Password, account.Email, account.EmailPassword).DoWork();
+                new Worker(account.Login, account.Password, account.Email, account.EmailPassword).DoWorkEmail();
+
                 if (quit) break;
 
                 if (account != accounts.Last())
