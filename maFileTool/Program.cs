@@ -10,6 +10,7 @@ namespace maFileTool
 {
     public class Program
     {
+
         public static string steam = Environment.CurrentDirectory + "\\Steam.xlsx";
         public static string steamtxt = Environment.CurrentDirectory + "\\Steam.txt";
         public static List<Account> accounts = new List<Account>();
