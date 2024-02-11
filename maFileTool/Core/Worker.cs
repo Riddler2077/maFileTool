@@ -674,7 +674,9 @@ namespace maFileTool.Core
 
         public string GetLoginCodeFromEmail(string host, int port)
         {
-            Thread.Sleep(10000);
+            Thread.Sleep(Int32.Parse(settings.DelayBeforeMailCheck) * 1000);
+
+            string[] accessDictionary = { "доступ из нового браузера или мобильного устройства", "" };
 
             var loginCode = string.Empty;
 
@@ -708,7 +710,8 @@ namespace maFileTool.Core
                     {
                         var message = inbox.GetMessage(i);
 
-                        if (message.From.ToString() != "\"Steam Support\" <noreply@steampowered.com>") continue;
+                        if (!message.From.ToString().Contains("<noreply@steampowered.com>")) continue;
+                        if (!message.HtmlBody.ToString().Contains("Steam Guard")) continue;
 
                         var code = Regex.Match(message.HtmlBody, "class=([\"])title-48 c-blue1 fw-b a-center([^>]+)([>])([^<]+)").Groups[4].Value;
                         if (string.IsNullOrEmpty(code)) continue;
@@ -748,7 +751,8 @@ namespace maFileTool.Core
                     {
                         var message = client.GetMessage(i);
 
-                        if (message.From.ToString() != "\"Steam Support\" <noreply@steampowered.com>") continue;
+                        if (!message.From.ToString().Contains("<noreply@steampowered.com>")) continue;
+                        if (!message.HtmlBody.ToString().Contains("Steam Guard")) continue;
 
                         var code = Regex.Match(message.HtmlBody, "class=([\"])title-48 c-blue1 fw-b a-center([^>]+)([>])([^<]+)").Groups[4].Value;
                         if (string.IsNullOrEmpty(code)) continue;
@@ -765,7 +769,7 @@ namespace maFileTool.Core
 
         public string GetAuthenticatorCodeFromEmail(string host, int port)
         {
-            Thread.Sleep(10000);
+            Thread.Sleep(Int32.Parse(settings.DelayBeforeMailCheck) * 1000);
 
             var authenticatorCode = string.Empty;
 
@@ -856,7 +860,7 @@ namespace maFileTool.Core
 
         private void ConfirmEmailForAdd(string host, int port)
         {
-            Thread.Sleep(10000);
+            Thread.Sleep(Int32.Parse(settings.DelayBeforeMailCheck) * 1000);
 
             if (settings.MailProtocol.ToLower() == "imap")
             {

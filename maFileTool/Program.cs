@@ -10,7 +10,6 @@ namespace maFileTool
 {
     public class Program
     {
-
         public static string steam = Environment.CurrentDirectory + "\\Steam.xlsx";
         public static string steamtxt = Environment.CurrentDirectory + "\\Steam.txt";
         public static List<Account> accounts = new List<Account>();
@@ -83,9 +82,9 @@ namespace maFileTool
                 if (quit) { Console.WriteLine("Exit due to an error. This is the way."); break; }
                 else
                 {
-                    TimerRendering("mins");
+                    //TimerRendering("mins");
                     accounts.Clear();
-                    //Scanning();
+                    Scanning();
                     if (accounts.Count() <= 0)
                     {
                         Console.WriteLine("All tasks have been completed successfully. This is the way.");

@@ -31,5 +31,6 @@
         public string MailPort { get; set; } = "993";
         public string MailProtocol { get; set; } = "IMAP";
         public string UseSSL { get; set; } = "true";
+        public string DelayBeforeMailCheck { get; set; } = "60";
     }
 }
