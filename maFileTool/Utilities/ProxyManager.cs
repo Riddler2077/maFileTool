@@ -2,7 +2,6 @@
 using Serilog;
 using System.Net;
 using System.Text.RegularExpressions;
-using static SteamKit2.Internal.PublishedFileDetails;
 
 namespace maFileTool.Utilities
 {

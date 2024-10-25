@@ -72,7 +72,9 @@ namespace maFileTool.Services
 
         public async Task GetIP(CancellationToken cancellationToken = default)
         {
-            CheckConnection:
+        //На данном этапе должны отсеиваться все плохие прокси
+
+        CheckConnection:
 
             try
             {
@@ -97,6 +99,9 @@ namespace maFileTool.Services
             catch (HttpRequestException ex)
             {
                 Log.Logger.Error("{0} => Ошибка при загрузке страницы : {1}", Login, ex.Message);
+
+                //Globals.Proxies.Remove(this.Proxy);
+
                 var httpClientFactory = Program.ServiceProvider!.GetRequiredService<IHttpClientFactory>();
                 var randomProxy = Globals.Proxies.Count >= 1 ? Globals.Proxies[new Random().Next(Globals.Proxies.Count)] : "Default";
                 this.httpClient = httpClientFactory.CreateClient(randomProxy);
@@ -116,11 +121,24 @@ namespace maFileTool.Services
             SteamClient steamClient = new SteamClient();
 
             // Connect to Steam
+            Connect:
+
+            // Connect to Steam
             steamClient.Connect();
+
+            int i = 0;
 
             // Really basic way to wait until Steam is connected
             while (!steamClient.IsConnected)
-                Thread.Sleep(500);
+            {
+                if (i >= 30) //15 sec max
+                    break;
+                await Task.Delay(1 * 500);
+                i++;
+            }
+
+            if (!steamClient.IsConnected)
+                goto Connect;
 
             // Create a new auth session
             CredentialsAuthSession authSession;
@@ -220,13 +238,17 @@ namespace maFileTool.Services
             AuthenticatorLinker.FinalizeResult finalizeResponse = AuthenticatorLinker.FinalizeResult.GeneralFailure;
             while (finalizeResponse != AuthenticatorLinker.FinalizeResult.Success)
             {
+                AuthenticatorCode:
+
                 var authenticatorCode = await GetAuthenticatorCodeFromEmail(Globals.Settings.MailServer, Int32.Parse(Globals.Settings.MailPort));
 
                 if (string.IsNullOrEmpty(authenticatorCode))
                 {
                     Log.Logger.Error("{0} => Authenticator code not received!", Login);
+                    Log.Logger.Error("{0} => Retrying getting authenticator code from email!", Login);
+                    goto AuthenticatorCode;
                     //SaveAccountData();
-                    return;
+                    //return;
                 }
 
                 Log.Logger.Information("{0} => Sending Authenticator code.", Login);
@@ -237,7 +259,9 @@ namespace maFileTool.Services
                 {
                     case AuthenticatorLinker.FinalizeResult.BadSMSCode:
                         Log.Logger.Error("{0} => Code {1} incorrect", Login, authenticatorCode);
-                        return;
+                        Log.Logger.Error("{0} => Retrying getting authenticator code from email!", Login);
+                        goto AuthenticatorCode;
+                        //return;
 
                     case AuthenticatorLinker.FinalizeResult.UnableToGenerateCorrectCodes:
                         Log.Logger.Error("{0} => Unable to generate the proper codes to finalize this authenticator. The authenticator should not have been linked. In the off-chance it was, please write down your revocation code, as this is the last chance to see it: {1}", Login, linker.LinkedAccount?.RevocationCode);
