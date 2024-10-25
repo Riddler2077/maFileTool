@@ -1,272 +1,250 @@
-﻿using maFileTool.Core;
-using maFileTool.Model;
+﻿using Serilog.Sinks.SystemConsole.Themes;
+using Serilog;
+using Microsoft.Extensions.DependencyInjection;
 using maFileTool.Services;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
+using maFileTool.Interfaces;
+using maFileTool.Model;
+using maFileTool.Utilities;
+using System.Net;
+using System.Collections.Concurrent;
+using System.Reflection;
 
 namespace maFileTool
 {
     public class Program
     {
-        public static string steam = Environment.CurrentDirectory + "\\Steam.xlsx";
-        public static string steamtxt = Environment.CurrentDirectory + "\\Steam.txt";
-        public static List<Account> accounts = new List<Account>();
-        public static bool quit = false;
-        public static bool exit = false;
+        public static readonly string ExecutablePath = Path.GetDirectoryName(AppContext.BaseDirectory)!;
 
-        static bool secs = false;
-        static bool mins = false;
+        public static IServiceProvider? ServiceProvider;
 
-        static bool enterPressed = false;
+        private static readonly CancellationTokenSource cancellationTokenSource = new();
 
-        static void Main(string[] args)
+        private static ConcurrentDictionary<int, Task> runningTasks = new ConcurrentDictionary<int, Task>();
+
+        private static bool shouldStop = false;
+
+        private static int offsetCounter = 0;
+
+        static async Task Main(string[] args)
         {
-            string tedonstore = "Powered by Baby Yoda";
-            Console.WriteLine(String.Format("{0," + ((Console.WindowWidth / 2) + (tedonstore.Length / 2)) + "}", tedonstore));
+            //Инициализация
+            await Initialization();
 
-            #region Checks
+            // Настройка DI контейнера
+            ServiceProvider = RegisterServicesAsync();
 
-            if (!System.IO.File.Exists(String.Format("{0}\\Settings.json", Environment.CurrentDirectory)))
+            Log.Logger.Information("Loaded - {0} accounts. Press any key to start.", Globals.Accounts.Count);
+            Console.ReadKey();
+
+            _ = Task.Run(() => MonitorUserInput(), cancellationTokenSource.Token);
+
+            // Параллельное выполнение задач
+            Enumerable.Range(0, Int32.Parse(Globals.Settings.ThreadCount)).AsParallel().ForAll(x =>
             {
-                new Utils().SaveSettings();
-                Console.WriteLine("Please specify the settings in Settings.json");
-                Console.ReadLine();
+                StartUp(x);
+            });
+
+            await Task.Delay(-1);
+        }
+
+        static void StartUp(int taskId, long oldOffset = 0)
+        {
+            int currentOffset = Interlocked.Increment(ref offsetCounter) - 1; // Получаем уникальное смещение
+            int maxOffset = Globals.Accounts.Count;
+
+            // Проверка на достижение максимального смещения
+            if (currentOffset >= maxOffset)
+            {
+                //Log.Logger.Warning($"Достигнуто максимальное смещение {maxOffset}. Остановка всех задач.");
+                shouldStop = true;
                 return;
             }
 
-            if (String.IsNullOrEmpty(Worker.settings.MailServer) || String.IsNullOrWhiteSpace(Worker.settings.MailServer))
+            string login = Globals.Accounts[currentOffset].Login;
+
+            Task task = Task.Run(async () =>
             {
-                Console.WriteLine("Please specify the MailServer in Settings.json");
-                Console.ReadLine();
-                return;
-            }
+                await Run(login);
+            });
 
-            if (String.IsNullOrEmpty(Worker.settings.MailPort) || String.IsNullOrWhiteSpace(Worker.settings.MailPort))
+            // Сохраняем запущенную задачу в коллекции
+            runningTasks[taskId] = task;
+
+            task.ContinueWith(t =>
             {
-                Console.WriteLine("Please specify the MailPort in Settings.json");
-                Console.ReadLine();
-                return;
-            }
+                // Если задача завершилась успешно (без ошибок)
+                if (!t.IsFaulted && !t.IsCanceled)
+                {
+                    if (!shouldStop) // Проверяем, можно ли запускать новые задачи
+                        StartUp(taskId); //Рекурсивно запускаем следующий аккаунт
+                    else
+                    {
+                        // Удаляем задачу из словаря, если она завершена и новые не запускаются
+                        runningTasks.TryRemove(taskId, out _);
 
-            if (String.IsNullOrEmpty(Worker.settings.MailProtocol) || String.IsNullOrWhiteSpace(Worker.settings.MailProtocol))
-            {
-                Console.WriteLine("Please specify the MailProtocol in Settings.json");
-                Console.ReadLine();
-                return;
-            }
-
-            if (!System.IO.File.Exists(steam))
-            {
-                Console.WriteLine("Сan't find Steam.xlsx");
-                Console.ReadLine();
-                return;
-            }
-
-            if (!System.IO.File.Exists(steamtxt))
-            {
-                Console.WriteLine("Сan't find Steam.txt");
-                Console.ReadLine();
-                return;
-            }
-
-            #endregion
-
-            Scanning();
-            if (exit) return;
-            while (true)
-            {
-                DoWork();
-
-                if (quit) { Console.WriteLine("Exit due to an error. This is the way."); break; }
+                        // Если все задачи завершены, выведем информацию об этом
+                        if (runningTasks.IsEmpty)
+                        {
+                            Log.Logger.Information("Все задачи остановлены.");
+                        }
+                    }
+                }
                 else
                 {
-                    //TimerRendering("mins");
-                    accounts.Clear();
-                    Scanning();
-                    if (accounts.Count() <= 0)
+                    Log.Logger.Error("{0} => Ошибка! {1}", login, t.Exception);
+                }
+            });
+        }
+
+        private static void MonitorUserInput()
+        {
+            // Перехватываем Ctrl+C для плавной остановки
+            Console.CancelKeyPress += (sender, e) =>
+            {
+                Log.Logger.Warning("Сочетание Ctrl+C нажато. Плавное завершение работы приложения.");
+                e.Cancel = true; // Отменяет стандартное завершение по Ctrl+C
+                shouldStop = true; // Запускает плавную остановку
+            };
+
+            // Цикл для непрерывного мониторинга других клавиш или условий
+            while (!cancellationTokenSource.Token.IsCancellationRequested || shouldStop)
+            {
+                if (Console.KeyAvailable)
+                {
+                    var key = Console.ReadKey(intercept: true);
+
+                    // Проверка на сочетание Ctrl+Q
+                    if (key.Key == ConsoleKey.Q && key.Modifiers.HasFlag(ConsoleModifiers.Control))
                     {
-                        Console.WriteLine("All tasks have been completed successfully. This is the way.");
+                        Console.WriteLine("Сочетание Ctrl+Q нажато. Завершение работы приложения.");
+                        cancellationTokenSource.Cancel(); // Запускает плавную остановку
                         break;
                     }
                 }
             }
-            Console.ReadLine();
         }
 
-        static void DoWork() 
+        private static IServiceProvider RegisterServicesAsync()
         {
-            foreach (var account in accounts)
-            {
-                secs = false;
-                mins = false;
+            ServiceCollection serviceCollection = new ServiceCollection();
 
-                new Worker(account.Login, account.Password, account.Email, account.EmailPassword).DoWorkEmail();
+            ConfigureHttpClients(serviceCollection);
 
-                if (quit) break;
+            ConfigureMaFileServices(serviceCollection);
 
-                if (account != accounts.Last())
-                    TimerRendering("secs");
-            }
+            return serviceCollection.BuildServiceProvider();
         }
 
-        static void TimerRendering(string mode)
+        private static void ConfigureHttpClients(IServiceCollection services)
         {
-            if (mode == "mins")
+            // Используем либо список прокси, либо один "пустой" элемент для стандартного клиента
+            var proxies = Globals.Proxies.Count >= 1 ? Globals.Proxies : new List<string>() { "Default" };
+
+            foreach (string proxy in proxies)
             {
-                mins = false;
-
-                int waiting = 15;
-
-                while (waiting > 0)
+                services.AddHttpClient(proxy, httpClient =>
                 {
-                    if (mins)
-                    {
-                        Console.SetCursorPosition(String.Format("Sleep {0} minutes before rescanning.", (waiting + 1)).Length, Console.CursorTop - 1);
-                        do { Console.Write("\b \b"); } while (Console.CursorLeft > 0);
-                        Console.WriteLine("Sleep {0} minutes before rescanning.", waiting);
-                    }
-                    else
-                    {
-                        mins = true;
-                        Console.WriteLine("Sleep {0} minutes before rescanning.", waiting);
-                    }
-
-                    Thread.Sleep(1 * 60 * 1000);
-                    waiting--;
-                }
-
-                Console.SetCursorPosition(String.Format("Sleep {0} minutes before rescanning.", waiting).Length, Console.CursorTop - 1);
-                do { Console.Write("\b \b"); } while (Console.CursorLeft > 0);
-            }
-            else 
-            {
-                int waiting = Int32.Parse(Worker.settings.BindingTimeout) * 60;
-
-                while (waiting > 0)
+                    httpClient.Timeout = TimeSpan.FromSeconds(30);
+                    httpClient.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36");
+                })
+                .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler()
                 {
-                    if (secs)
-                    {
-                        Console.SetCursorPosition(String.Format("Sleep {0} seconds before linking new account.", (waiting + 1)).Length, Console.CursorTop - 1);
-                        do { Console.Write("\b \b"); } while (Console.CursorLeft > 0);
-                        Console.WriteLine("Sleep {0} seconds before linking new account.", waiting);
-                    }
-                    else
-                    {
-                        secs = true;
-                        Console.WriteLine("Sleep {0} seconds before linking new account.", waiting);
-                    }
-
-                    Thread.Sleep(1 * 1000);
-                    waiting--;
-                }
-
-                Console.SetCursorPosition(String.Format("Sleep {0} seconds before linking new account.", waiting).Length, Console.CursorTop - 1);
-                do { Console.Write("\b \b"); } while (Console.CursorLeft > 0);
+                    AutomaticDecompression = DecompressionMethods.All,
+                    Proxy = ProxyManager.ConvertProxy(proxy),
+                    UseProxy = Globals.Proxies.Count >= 1 ? true : false,
+                });
             }
         }
 
-        static void Scanning() 
+        private static void ConfigureMaFileServices(IServiceCollection services)
         {
-            string mode = Worker.settings.Mode.ToLower();
-
-            switch (mode)
+            foreach (Account account in Globals.Accounts)
             {
-                case "excel":
-                    accounts = new Excel().ReadFromExcel(steam);
-                    accounts.RemoveAll(t => String.IsNullOrEmpty(t.Login) || t.Login == "Логин" || t.Login == "Login");
+                // Регистрация MaFileService с параметрами
+                services.AddKeyedTransient<IMaFileService, MaFileService>(account.Login, (provider, _) =>
+                {
+                    var httpClientFactory = provider.GetRequiredService<IHttpClientFactory>();
+                    var randomProxy = Globals.Proxies.Count >= 1 ? Globals.Proxies[new Random().Next(Globals.Proxies.Count)] : "Default";
+                    var httpClient = httpClientFactory.CreateClient(randomProxy);
+                    return new MaFileService(account.Login, account.Password, account.Email, account.EmailPassword, httpClient);
+                });
+            }
+        }
 
-                    int count = accounts.Count;
-                    for (int i = 0; i < count; i++)
-                    {
-                        Account account = accounts[i];
-                        string date = account.Phone;
-                        try
-                        {
-                            DateTime accDate = DateTime.ParseExact(date, "dd.MM.yy HH:mm", System.Globalization.CultureInfo.InvariantCulture);
-                            if (accDate > DateTime.Now)
-                            {
-                                accounts.Remove(account);
-                                i--; count--;
-                            }
-                        }
-                        catch (FormatException)
-                        {
-                            accounts.Remove(account);
-                            i--; count--;
-                        }
-                        catch (ArgumentNullException)
-                        {
-                            //Пустые оставляем
-                        }
-                    }
-                    if (!enterPressed)
-                    {
-                        Console.WriteLine("Loaded - {0} accounts. Press enter to start.", accounts.Count());
-                        Console.ReadLine();
-                        Console.SetCursorPosition(0, Console.CursorTop - 1);
-                        enterPressed = true;
-                    }
-                    else Console.WriteLine("Rescanning... Loaded - {0} accounts.", accounts.Count());
-                    break;
-                case "txt":
-                    string[] acs = System.IO.File.ReadAllLines(steamtxt);
-                    acs = acs.Where(x => !string.IsNullOrEmpty(x)).ToArray();
-                    acs = acs.Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
-                    
-                    //Не самое элегантное решение
-                    List<string> accs = new List<string>();
+        private static async Task Initialization()
+        {
+            // Конфигурация Serilog для логирования
+            Log.Logger = new LoggerConfiguration().MinimumLevel.Debug()
+                .WriteTo.Console(theme: AnsiConsoleTheme.Code)
+                .WriteTo.File(
+                    path: "Logs/log-.txt",         // Путь к файлу с шаблоном для имени
+                    rollingInterval: RollingInterval.Day, // Ротация файлов ежедневно
+                    outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u3}] {Message:lj}{NewLine}{Exception}" // Формат вывода
+                )
+                .CreateLogger();
 
-                    foreach (var ac in acs) 
-                    {
-                        try
-                        {
-                            string date = ac.Split(':')[4];
-                            if (date.Contains("+")) { continue; }
-                            date = $"{ac.Split(':')[4]}:{ac.Split(':')[5]}";
-                            DateTime accDate = DateTime.ParseExact(date, "dd.MM.yy HH:mm", System.Globalization.CultureInfo.InvariantCulture);
-                            if (accDate < DateTime.Now) accs.Add(ac);
-                        }
-                        catch (FormatException)
-                        {
-                            //В теории никогда не возникнет
-                        }
-                        catch (IndexOutOfRangeException)
-                        {
-                            //Оставляем
-                            accs.Add(ac);
-                        }
-                    }
 
-                    acs = (string[])accs.ToArray();
+            Log.Logger.Warning("Powered by Baby Yoda.");
 
-                    int id = 0;
-                    foreach (var a in acs)
-                    {
-                        if (!a.Contains(':')) continue;
-                        id++;
-                        Account account = new Account();
-                        account.Id = id.ToString();
-                        account.Login = a.Split(':')[0];
-                        account.Password = a.Split(':')[1];
-                        account.Email = a.Split(':')[2];
-                        account.EmailPassword = a.Split(':')[3];
-                        accounts.Add(account);
-                    }
-                    if (!enterPressed)
-                    {
-                        Console.WriteLine("Loaded - {0} accounts. Press enter to start.", accounts.Count());
-                        Console.ReadLine(); enterPressed = true;
-                        Console.SetCursorPosition(0, Console.CursorTop - 1);
-                    }
-                    else Console.WriteLine("Rescanning... Loaded - {0} accounts.", accounts.Count());
-                    break;
-                default:
-                    Console.WriteLine("Please specify the Mode in Settings.json");
-                    Console.ReadLine();
-                    exit = true;
-                    return;
+            Log.Logger.Information("Initialization started.");
+
+            // Получаем все сборки в текущем домене
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+
+            // Получаем тип из библиотеки, версию которой нужно узнать
+            //var assembly = typeof(SteamKit2.SteamClient).Assembly;
+            var assembly = Assembly.GetExecutingAssembly();
+
+            // Получаем информацию о версии сборки
+            var name = assembly.GetName().Name;
+            var version = assembly.GetName().Version;
+            //var informationalVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? version?.ToString();
+
+            Log.Logger.Information("{0} {1} running under .NET {2}", name, version, Environment.Version);
+
+            if (!Directory.Exists(Globals.MaFilesFolder))
+                Directory.CreateDirectory(Globals.MaFilesFolder);
+
+            if (await Json.Document.ReadJsonAsync<Settings>(Globals.SettingsPath) is Settings settings)
+            {
+                Globals.Settings = settings;
+                Log.Logger.Information("Settings file loaded.");
+            }
+            else
+            {
+                Log.Logger.Error("Settings file not found!");
+                return;
+            }
+
+            if ((await Excel.ReadAccountsFromExcel(Globals.ExcelFilePath))
+                .Where(a => a.Email is not null)
+                .Where(a => a.RevocationCode is null)
+                .ToList() is List<Account> accounts)
+            {
+                Globals.Accounts = accounts;
+                Log.Logger.Information("Excel file loaded.");
+            }
+            else
+            {
+                Log.Logger.Error("Excel file not found!");
+                return;
+            }
+
+            if (File.Exists(Globals.ProxyPath) && new FileInfo(Globals.ProxyPath).Length > 0)
+                if (await ProxyManager.LoadProxiesAsync(Globals.ProxyPath) is List<string> proxies)
+                {
+                    Globals.Proxies = proxies;
+                    Log.Logger.Information("Loaded - {0} proxies.", Globals.Proxies.Count);
+                }
+        }
+
+        private static async Task Run(string login)
+        {
+            if (Program.ServiceProvider!.GetKeyedService<IMaFileService>(login) is IMaFileService maFileService)
+            {
+                await maFileService.GetIP(cancellationTokenSource.Token);
+                await maFileService.Authorization(cancellationTokenSource.Token);
+                await maFileService.LinkAuthenticator(cancellationTokenSource.Token);
             }
         }
     }

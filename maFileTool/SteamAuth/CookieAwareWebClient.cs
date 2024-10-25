@@ -1,8 +1,8 @@
-﻿using System;
-using System.Net;
+﻿using System.Net;
 
 namespace maFileTool.Services.SteamAuth
 {
+    #pragma warning disable SYSLIB0014 // Тип или член устарел
     public class CookieAwareWebClient : WebClient
     {
         public CookieContainer CookieContainer { get; set; } = new CookieContainer();
@@ -22,4 +22,5 @@ namespace maFileTool.Services.SteamAuth
             return response;
         }
     }
+    #pragma warning restore SYSLIB0014 // Тип или член устарел
 }

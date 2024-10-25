@@ -1,0 +1,50 @@
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
+
+namespace maFileTool.Model
+{
+    public class Settings
+    {
+        [JsonPropertyName("Mode")]
+        public string Mode { get; set; } = "EXCEL";
+
+        [JsonPropertyName("ThreadCount")]
+        public string ThreadCount { get; set; } = "1";
+
+        [JsonPropertyName("MailServer")]
+        public string MailServer { get; set; } = string.Empty;
+
+        [JsonPropertyName("MailPort")]
+        public string MailPort { get; set; } = "993";
+
+        [JsonPropertyName("MailProtocol")]
+        public string MailProtocol { get; set; } = "IMAP";
+
+        [JsonPropertyName("UseSSL")]
+        public string UseSSL { get; set; } = "true";
+
+        [JsonPropertyName("DelayBeforeMailCheck")]
+        public string DelayBeforeMailCheck { get; set; } = "60";
+
+        public Settings() { }
+
+        [JsonConstructor]
+        [DynamicDependency(nameof(Mode))]
+        [DynamicDependency(nameof(ThreadCount))]
+        [DynamicDependency(nameof(MailServer))]
+        [DynamicDependency(nameof(MailPort))]
+        [DynamicDependency(nameof(MailProtocol))]
+        [DynamicDependency(nameof(UseSSL))]
+        [DynamicDependency(nameof(DelayBeforeMailCheck))]
+        public Settings(string Mode, string ThreadCount, string MailServer, string MailPort, string MailProtocol, string UseSSL, string DelayBeforeMailCheck)
+        {
+            this.Mode = Mode;
+            this.ThreadCount = ThreadCount;
+            this.MailServer = MailServer;
+            this.MailPort = MailPort;
+            this.MailProtocol = MailProtocol;
+            this.UseSSL = UseSSL;
+            this.DelayBeforeMailCheck = DelayBeforeMailCheck;
+        }
+    }
+}

@@ -1,7 +1,8 @@
-﻿using maFileTool.Core;
+﻿using maFileTool.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
+using Serilog;
 using SteamKit2.Authentication;
-using System;
-using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace maFileTool.Services.SteamAuth
 {
@@ -27,9 +28,9 @@ namespace maFileTool.Services.SteamAuth
             {
                 // After 2 tries tell the user that there seems to be an issue
                 if (deviceCodesGenerated > 2)
-                    Console.WriteLine("There seems to be an issue logging into your account with these two factor codes. Are you sure SDA is still your authenticator?");
+                    Debug.WriteLine("There seems to be an issue logging into your account with these two factor codes. Are you sure SDA is still your authenticator?");
 
-                await Task.Delay(30000);
+                await Task.Delay(30 * 1000);
             }
 
             string deviceCode = await account.GenerateSteamGuardCodeAsync();
@@ -38,17 +39,28 @@ namespace maFileTool.Services.SteamAuth
             return deviceCode;
         }
 
-        public Task<string> GetEmailCodeAsync(string email, bool previousCodeWasIncorrect)
+        public async Task<string> GetEmailCodeAsync(string email, bool previousCodeWasIncorrect)
         {
-            Worker.Instance.Log("Waiting login code from email.");
             /*string message = "Enter the code sent to your email:";
             if (previousCodeWasIncorrect)
             {
                 message = "The code you provided was invalid. Enter the code sent to your email:";
-            }*/
+            }
 
-            string loginCode = Worker.Instance.GetLoginCodeFromEmail(Worker.settings.MailServer, Int32.Parse(Worker.settings.MailPort));
-            return Task.FromResult(loginCode);
+            InputForm emailForm = new InputForm(message);
+            emailForm.ShowDialog();*/
+
+            Log.Logger.Information("{0} => Waiting login code from email.", account.AccountName);
+
+            if (Program.ServiceProvider!.GetKeyedService<IMaFileService>(account.AccountName) is IMaFileService maFileService) 
+            {
+                if (await maFileService.GetLoginCodeFromEmail(Globals.Settings.MailServer, Int32.Parse(Globals.Settings.MailPort)) is string loginCode) 
+                {
+                    return loginCode;
+                }
+            }
+
+            return "";//emailForm.txtBox.Text);
         }
     }
 }

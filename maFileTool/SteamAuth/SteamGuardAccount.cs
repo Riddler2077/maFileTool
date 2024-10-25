@@ -1,61 +1,57 @@
-﻿using maFileTool.Core;
-using Newtonsoft.Json;
-using SteamKit2;
-using SteamKit2.Authentication;
+﻿using SteamKit2.Authentication;
 using SteamKit2.Internal;
-using System;
+using SteamKit2;
 using System.Collections.Specialized;
-using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace maFileTool.Services.SteamAuth
 {
     public class SteamGuardAccount
     {
-        [JsonProperty("shared_secret")]
-        public string SharedSecret { get; set; }
+        [JsonPropertyName("shared_secret")]
+        public string? SharedSecret { get; set; }
 
-        [JsonProperty("serial_number")]
-        public string SerialNumber { get; set; }
+        [JsonPropertyName("serial_number")]
+        public string? SerialNumber { get; set; }
 
-        [JsonProperty("revocation_code")]
-        public string RevocationCode { get; set; }
+        [JsonPropertyName("revocation_code")]
+        public string? RevocationCode { get; set; }
 
-        [JsonProperty("uri")]
-        public string URI { get; set; }
+        [JsonPropertyName("uri")]
+        public string? URI { get; set; }
 
-        [JsonProperty("server_time")]
+        [JsonPropertyName("server_time")]
         public long ServerTime { get; set; }
 
-        [JsonProperty("account_name")]
-        public string AccountName { get; set; }
+        [JsonPropertyName("account_name")]
+        public string? AccountName { get; set; }
 
-        [JsonProperty("token_gid")]
-        public string TokenGID { get; set; }
+        [JsonPropertyName("token_gid")]
+        public string? TokenGID { get; set; }
 
-        [JsonProperty("identity_secret")]
-        public string IdentitySecret { get; set; }
+        [JsonPropertyName("identity_secret")]
+        public string? IdentitySecret { get; set; }
 
-        [JsonProperty("secret_1")]
-        public string Secret1 { get; set; }
+        [JsonPropertyName("secret_1")]
+        public string? Secret1 { get; set; }
 
-        [JsonProperty("status")]
+        [JsonPropertyName("status")]
         public int Status { get; set; }
 
-        [JsonProperty("device_id")]
-        public string DeviceID { get; set; }
+        [JsonPropertyName("device_id")]
+        public string? DeviceID { get; set; }
 
         /// <summary>
         /// Set to true if the authenticator has actually been applied to the account.
         /// </summary>
-        [JsonProperty("fully_enrolled")]
+        [JsonPropertyName("fully_enrolled")]
         public bool FullyEnrolled { get; set; }
 
-        public SessionData Session { get; set; }
+        public SessionData? Session { get; set; }
 
         private static byte[] steamGuardCodeTranslations = new byte[] { 50, 51, 52, 53, 54, 55, 56, 57, 66, 67, 68, 70, 71, 72, 74, 75, 77, 78, 80, 81, 82, 84, 86, 87, 88, 89 };
 
@@ -70,10 +66,10 @@ namespace maFileTool.Services.SteamAuth
             postBody.Add("revocation_code", this.RevocationCode);
             postBody.Add("revocation_reason", "1");
             postBody.Add("steamguard_scheme", scheme.ToString());
-            string response = await SteamWeb.POSTRequest("https://api.steampowered.com/ITwoFactorService/RemoveAuthenticator/v1?access_token=" + this.Session.AccessToken, null, postBody);
+            string response = await SteamWeb.POSTRequest("https://api.steampowered.com/ITwoFactorService/RemoveAuthenticator/v1?access_token=" + this.Session!.AccessToken, null!, postBody);
 
             // Parse to object
-            var removeResponse = JsonConvert.DeserializeObject<RemoveAuthenticatorResponse>(response);
+            var removeResponse = Json.Document.DeserializeJson<RemoveAuthenticatorResponse>(response);
 
             if (removeResponse == null || removeResponse.Response == null || !removeResponse.Response.Success) return false;
             return true;
@@ -125,30 +121,110 @@ namespace maFileTool.Services.SteamAuth
             }
             catch (Exception)
             {
-                return null; //Change later, catch-alls are bad!
+                return null!; //Change later, catch-alls are bad!
             }
             return Encoding.UTF8.GetString(codeArray);
+        }
+
+        public async Task<bool> RefreshSession(SteamGuardAccount account, string password)
+        {
+            string username = account.AccountName!;
+
+            // Start a new SteamClient instance
+            SteamClient steamClient = new SteamClient();
+
+            Connect:
+
+            // Connect to Steam
+            steamClient.Connect();
+
+            //Console.WriteLine("Connecting to Steam");
+
+            //15 sec max
+            int i = 0;
+            // Really basic way to wait until Steam is connected
+            while (!steamClient.IsConnected)
+            {
+                if (i >= 15)
+                    break;
+                await Task.Delay(1 * 1000);
+                i++;
+            }
+
+            if (!steamClient.IsConnected)
+                goto Connect;
+
+            // Create a new auth session
+            CredentialsAuthSession authSession;
+
+            try
+            {
+                authSession = await steamClient.Authentication.BeginAuthSessionViaCredentialsAsync(new AuthSessionDetails
+                {
+                    Username = username,
+                    Password = password,
+                    IsPersistentSession = false,
+                    PlatformType = EAuthTokenPlatformType.k_EAuthTokenPlatformType_MobileApp,
+                    ClientOSType = EOSType.Android9,
+                    Authenticator = new UserFormAuthenticator(account),
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Steam Login Error\n{0}", ex.Message);
+                return false;
+            }
+
+            // Starting polling Steam for authentication response
+            AuthPollResult pollResponse;
+            try
+            {
+                pollResponse = await authSession.PollingWaitForResultAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Steam Login Error 2\n{0}", ex.Message);
+                return false;
+            }
+
+            // Build a SessionData object
+            SessionData sessionData = new SessionData()
+            {
+                SteamID = authSession.SteamID.ConvertToUInt64(),
+                AccessToken = pollResponse.AccessToken,
+                RefreshToken = pollResponse.RefreshToken,
+            };
+
+            sessionData.SessionID = sessionData.GetCookies().GetCookies(new Uri("http://steamcommunity.com")).Cast<Cookie>().First(c => c.Name == "sessionid").Value;
+
+            //Login succeeded
+            this.Session = sessionData;
+
+            account.FullyEnrolled = true;
+            account.Session = sessionData;
+
+            return true;
         }
 
         public Confirmation[] FetchConfirmations()
         {
             string url = this.GenerateConfirmationURL();
-            string response = SteamWeb.GETRequest(url, this.Session.GetCookies()).Result;
+            string response = SteamWeb.GETRequest(url, this.Session!.GetCookies()).Result;
             return FetchConfirmationInternal(response);
         }
 
         public async Task<Confirmation[]> FetchConfirmationsAsync()
         {
             string url = this.GenerateConfirmationURL();
-            string response = await SteamWeb.GETRequest(url, this.Session.GetCookies());
+            string response = await SteamWeb.GETRequest(url, this.Session!.GetCookies());
             return FetchConfirmationInternal(response);
         }
 
         private Confirmation[] FetchConfirmationInternal(string response)
         {
-            var confirmationsResponse = JsonConvert.DeserializeObject<ConfirmationsResponse>(response);
+            var confirmationsResponse = Json.Document.DeserializeJson<ConfirmationsResponse>(response);
 
-            if (!confirmationsResponse.Success)
+            if (!confirmationsResponse!.Success)
             {
                 throw new Exception(confirmationsResponse.Message);
             }
@@ -158,7 +234,7 @@ namespace maFileTool.Services.SteamAuth
                 throw new Exception("Needs Authentication");
             }
 
-            return confirmationsResponse.Confirmations;
+            return confirmationsResponse!.Confirmations!;
         }
 
         /// <summary>
@@ -204,11 +280,11 @@ namespace maFileTool.Services.SteamAuth
             queryString += "&cid=" + conf.ID + "&ck=" + conf.Key;
             url += queryString;
 
-            string response = await SteamWeb.GETRequest(url, this.Session.GetCookies());
+            string response = await SteamWeb.GETRequest(url, this.Session!.GetCookies());
             if (response == null) return false;
 
-            SendConfirmationResponse confResponse = JsonConvert.DeserializeObject<SendConfirmationResponse>(response);
-            return confResponse.Success;
+            SendConfirmationResponse? confResponse = Json.Document.DeserializeJson<SendConfirmationResponse>(response);
+            return confResponse!.Success;
         }
 
         private async Task<bool> _sendMultiConfirmationAjax(Confirmation[] confs, string op)
@@ -226,15 +302,15 @@ namespace maFileTool.Services.SteamAuth
             using (CookieAwareWebClient wc = new CookieAwareWebClient())
             {
                 wc.Encoding = Encoding.UTF8;
-                wc.CookieContainer = this.Session.GetCookies();
+                wc.CookieContainer = this.Session!.GetCookies();
                 wc.Headers[HttpRequestHeader.UserAgent] = SteamWeb.MOBILE_APP_USER_AGENT;
                 wc.Headers[HttpRequestHeader.ContentType] = "application/x-www-form-urlencoded; charset=UTF-8";
                 response = await wc.UploadStringTaskAsync(new Uri(url), "POST", query);
             }
             if (response == null) return false;
 
-            SendConfirmationResponse confResponse = JsonConvert.DeserializeObject<SendConfirmationResponse>(response);
-            return confResponse.Success;
+            SendConfirmationResponse? confResponse = Json.Document.DeserializeJson<SendConfirmationResponse>(response);
+            return confResponse!.Success;
         }
 
         public string GenerateConfirmationURL(string tag = "conf")
@@ -263,7 +339,7 @@ namespace maFileTool.Services.SteamAuth
 
             var ret = new NameValueCollection();
             ret.Add("p", this.DeviceID);
-            ret.Add("a", this.Session.SteamID.ToString());
+            ret.Add("a", this.Session!.SteamID.ToString());
             ret.Add("k", _generateConfirmationHashForTime(time, tag));
             ret.Add("t", time.ToString());
             ret.Add("m", "react");
@@ -274,7 +350,7 @@ namespace maFileTool.Services.SteamAuth
 
         private string _generateConfirmationHashForTime(long time, string tag)
         {
-            byte[] decode = Convert.FromBase64String(this.IdentitySecret);
+            byte[] decode = Convert.FromBase64String(this.IdentitySecret!);
             int n2 = 8;
             if (tag != null)
             {
@@ -316,114 +392,48 @@ namespace maFileTool.Services.SteamAuth
             }
             catch
             {
-                return null;
+                return null!;
             }
-        }
-
-        public async Task<bool> RefreshSession(SteamGuardAccount account, string password)
-        {
-            string username = account.AccountName;
-
-            // Start a new SteamClient instance
-            SteamClient steamClient = new SteamClient();
-
-            // Connect to Steam
-            steamClient.Connect();
-
-            // Really basic way to wait until Steam is connected
-            while (!steamClient.IsConnected)
-                await Task.Delay(500);
-
-            // Create a new auth session
-            CredentialsAuthSession authSession;
-
-            try
-            {
-                authSession = await steamClient.Authentication.BeginAuthSessionViaCredentialsAsync(new AuthSessionDetails
-                {
-                    Username = username,
-                    Password = password,
-                    IsPersistentSession = false,
-                    PlatformType = EAuthTokenPlatformType.k_EAuthTokenPlatformType_MobileApp,
-                    ClientOSType = EOSType.Android9,
-                    Authenticator = new UserFormAuthenticator(account),
-                });
-            }
-            catch (Exception ex)
-            {
-                //MessageBox.Show(ex.Message, "Steam Login Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                //Start.Log("Steam Login Error", this.AccountName, true);
-                return false;
-            }
-
-            // Starting polling Steam for authentication response
-            AuthPollResult pollResponse;
-            try
-            {
-                pollResponse = await authSession.PollingWaitForResultAsync();
-            }
-            catch (Exception ex)
-            {
-                //Start.Log("Steam Login Error 2", this.AccountName, true);
-                //MessageBox.Show(ex.Message, "Steam Login Error 2", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return false;
-            }
-
-            // Build a SessionData object
-            SessionData sessionData = new SessionData()
-            {
-                SteamID = authSession.SteamID.ConvertToUInt64(),
-                AccessToken = pollResponse.AccessToken,
-                RefreshToken = pollResponse.RefreshToken,
-            };
-
-            sessionData.SessionID = sessionData.GetCookies().GetCookies(new Uri("http://steamcommunity.com")).Cast<Cookie>().First(c => c.Name == "sessionid").Value;
-
-            //Login succeeded
-            this.Session = sessionData;
-
-            account.FullyEnrolled = true;
-            account.Session = sessionData;
-
-            return true;
         }
 
         public class WGTokenInvalidException : Exception
         {
+
         }
 
         public class WGTokenExpiredException : Exception
         {
+
         }
 
         private class RemoveAuthenticatorResponse
         {
-            [JsonProperty("response")]
-            public RemoveAuthenticatorInternalResponse Response { get; set; }
+            [JsonPropertyName("response")]
+            public RemoveAuthenticatorInternalResponse? Response { get; set; }
 
             internal class RemoveAuthenticatorInternalResponse
             {
-                [JsonProperty("success")]
+                [JsonPropertyName("success")]
                 public bool Success { get; set; }
 
-                [JsonProperty("revocation_attempts_remaining")]
+                [JsonPropertyName("revocation_attempts_remaining")]
                 public int RevocationAttemptsRemaining { get; set; }
             }
         }
 
         private class SendConfirmationResponse
         {
-            [JsonProperty("success")]
+            [JsonPropertyName("success")]
             public bool Success { get; set; }
         }
 
         private class ConfirmationDetailsResponse
         {
-            [JsonProperty("success")]
+            [JsonPropertyName("success")]
             public bool Success { get; set; }
 
-            [JsonProperty("html")]
-            public string HTML { get; set; }
+            [JsonPropertyName("html")]
+            public string? HTML { get; set; }
         }
     }
 }
