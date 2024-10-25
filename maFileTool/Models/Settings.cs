@@ -23,6 +23,9 @@ namespace maFileTool.Model
         [JsonPropertyName("UseSSL")]
         public string UseSSL { get; set; } = "true";
 
+        [JsonPropertyName("UseProxyForEmailClient")]
+        public string UseProxyForEmailClient { get; set; } = "true";
+
         [JsonPropertyName("DelayBeforeMailCheck")]
         public string DelayBeforeMailCheck { get; set; } = "60";
 
@@ -35,8 +38,9 @@ namespace maFileTool.Model
         [DynamicDependency(nameof(MailPort))]
         [DynamicDependency(nameof(MailProtocol))]
         [DynamicDependency(nameof(UseSSL))]
+        [DynamicDependency(nameof(UseProxyForEmailClient))]
         [DynamicDependency(nameof(DelayBeforeMailCheck))]
-        public Settings(string Mode, string ThreadCount, string MailServer, string MailPort, string MailProtocol, string UseSSL, string DelayBeforeMailCheck)
+        public Settings(string Mode, string ThreadCount, string MailServer, string MailPort, string MailProtocol, string UseSSL, string UseProxyForEmailClient, string DelayBeforeMailCheck)
         {
             this.Mode = Mode;
             this.ThreadCount = ThreadCount;
@@ -44,6 +48,7 @@ namespace maFileTool.Model
             this.MailPort = MailPort;
             this.MailProtocol = MailProtocol;
             this.UseSSL = UseSSL;
+            this.UseProxyForEmailClient = UseProxyForEmailClient;
             this.DelayBeforeMailCheck = DelayBeforeMailCheck;
         }
     }

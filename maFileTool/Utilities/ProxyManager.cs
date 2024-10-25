@@ -1,6 +1,8 @@
-﻿using Serilog;
+﻿using MailKit.Net.Proxy;
+using Serilog;
 using System.Net;
 using System.Text.RegularExpressions;
+using static SteamKit2.Internal.PublishedFileDetails;
 
 namespace maFileTool.Utilities
 {
@@ -46,5 +48,45 @@ namespace maFileTool.Utilities
 
             return webProxy;
         }
+
+        public static IProxyClient? MailProxyClient(WebProxy webProxy)
+        {
+            if (webProxy.Address is Uri uri)
+            {
+                string protocol = uri.Scheme.ToLower();
+
+                if (webProxy.Credentials is not null)
+                {
+                    if (webProxy.Credentials is NetworkCredential creds)
+                    {
+                        return protocol switch
+                        {
+                            "http" or "https" => new HttpProxyClient(uri.Host, uri.Port, creds),
+                            "socks4" => new Socks4Client(uri.Host, uri.Port, creds),
+                            "socks5" => new Socks5Client(uri.Host, uri.Port, creds),
+                            _ => throw new NotImplementedException($"Протокол {protocol} не поддерживается."),
+                        };
+                    }
+                }
+                else
+                {
+                    return protocol switch
+                    {
+                        "http" or "https" => new HttpProxyClient(uri.Host, uri.Port),
+                        "socks4" => new Socks4Client(uri.Host, uri.Port),
+                        "socks5" => new Socks5Client(uri.Host, uri.Port),
+                        _ => throw new NotImplementedException($"Протокол {protocol} не поддерживается."),
+                    };
+                }
+            }
+
+            return null;
+        }
+
+        //string protocol = Regex.Match(this.Proxy, "^[a-zA-Z0-9]+(?=://)").Value;
+        //string host = Regex.Match(this.Proxy, "(?<=://)[^:]+(?=:)").Value;
+        //string port = Regex.Match(this.Proxy, "(?<=://[^:]+:)\\d+(?=:)").Value;
+        //string username = Regex.Match(this.Proxy, "(?<=:\\d+:)[^:]+(?=:)").Value;
+        //string password = Regex.Match(this.Proxy, "(?<=:\\d+:[^:]+:)[^:]+$").Value;
     }
 }

@@ -14,8 +14,7 @@ namespace maFileTool
     public class Program
     {
         public static readonly string ExecutablePath = Path.GetDirectoryName(AppContext.BaseDirectory)!;
-
-        public static IServiceProvider? ServiceProvider;
+        public static IServiceProvider? ServiceProvider { get; private set; }
 
         private static readonly CancellationTokenSource cancellationTokenSource = new();
 
@@ -87,6 +86,8 @@ namespace maFileTool
                         {
                             Log.Logger.Information("Все задачи остановлены.");
                         }
+                        //else
+                            //Log.Logger.Warning("Runned Tasks => {0}", runningTasks.Count);
                     }
                 }
                 else
@@ -166,7 +167,7 @@ namespace maFileTool
                     var httpClientFactory = provider.GetRequiredService<IHttpClientFactory>();
                     var randomProxy = Globals.Proxies.Count >= 1 ? Globals.Proxies[new Random().Next(Globals.Proxies.Count)] : "Default";
                     var httpClient = httpClientFactory.CreateClient(randomProxy);
-                    return new MaFileService(account.Login, account.Password, account.Email, account.EmailPassword, httpClient);
+                    return new MaFileService(account.Login, account.Password, account.Email, account.EmailPassword, randomProxy, httpClient);
                 });
             }
         }

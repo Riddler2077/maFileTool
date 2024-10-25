@@ -14,6 +14,8 @@ using SteamKit2;
 using Serilog;
 using maFileTool.Utilities;
 using maFileTool.Model;
+using Microsoft.Extensions.DependencyInjection;
+using MailKit.Net.Proxy;
 
 namespace maFileTool.Services
 {
@@ -47,6 +49,7 @@ namespace maFileTool.Services
         string Password { get; set; } = string.Empty;
         string Email { get; set; } = string.Empty;
         string EmailPassword { get; set; } = string.Empty;
+        string Proxy { get; set; } = string.Empty;
         string Phone { get; set; } = "Email";
         string RevocationCode { get; set; } = string.Empty;
 
@@ -55,12 +58,13 @@ namespace maFileTool.Services
         HttpClient httpClient;
         SteamGuardAccount steamGuardAccount;
         SessionData sessionData;
-        public MaFileService(string Login, string Password, string Email, string EmailPassword, HttpClient httpClient)
+        public MaFileService(string Login, string Password, string Email, string EmailPassword, string Proxy, HttpClient httpClient)
         {
             this.Login = Login;
             this.Password = Password;
             this.Email = Email;
             this.EmailPassword = EmailPassword;
+            this.Proxy = Proxy;
             this.httpClient = httpClient;
             this.steamGuardAccount = new SteamGuardAccount();
             this.sessionData = new SessionData();
@@ -68,6 +72,8 @@ namespace maFileTool.Services
 
         public async Task GetIP(CancellationToken cancellationToken = default)
         {
+            CheckConnection:
+
             try
             {
                 Context context = new Context();
@@ -91,6 +97,12 @@ namespace maFileTool.Services
             catch (HttpRequestException ex)
             {
                 Log.Logger.Error("{0} => Ошибка при загрузке страницы : {1}", Login, ex.Message);
+                var httpClientFactory = Program.ServiceProvider!.GetRequiredService<IHttpClientFactory>();
+                var randomProxy = Globals.Proxies.Count >= 1 ? Globals.Proxies[new Random().Next(Globals.Proxies.Count)] : "Default";
+                this.httpClient = httpClientFactory.CreateClient(randomProxy);
+                this.Proxy = randomProxy;
+                Log.Logger.Warning("{0} => Retrying with another client!", Login);
+                goto CheckConnection;
             }
         }
 
@@ -292,6 +304,15 @@ namespace maFileTool.Services
                     {
                         client.CheckCertificateRevocation = false;
 
+                        //Use Proxy For Email connection
+                        if(Convert.ToBoolean(Globals.Settings.UseProxyForEmailClient.ToLower()))
+                            if (this.Proxy != "Default")
+                                if (ProxyManager.ConvertProxy(this.Proxy) is WebProxy webProxy)
+                                    if (ProxyManager.MailProxyClient(webProxy) is IProxyClient proxyClient)
+                                        client.ProxyClient = proxyClient;
+
+                        Log.Logger.Information("{0} => MailClient started with proxy: {1}:{2}", Login, client.ProxyClient.ProxyHost, client.ProxyClient.ProxyPort);
+
                         try
                         {
                             client.Connect(host, port, Convert.ToBoolean(Globals.Settings.UseSSL.ToLower()), cancellationToken);
@@ -336,6 +357,15 @@ namespace maFileTool.Services
                     using (var client = new Pop3Client())
                     {
                         client.CheckCertificateRevocation = false;
+
+                        //Use Proxy For Email connection
+                        if (Convert.ToBoolean(Globals.Settings.UseProxyForEmailClient.ToLower()))
+                            if (this.Proxy != "Default")
+                                if (ProxyManager.ConvertProxy(this.Proxy) is WebProxy webProxy)
+                                    if (ProxyManager.MailProxyClient(webProxy) is IProxyClient proxyClient)
+                                        client.ProxyClient = proxyClient;
+
+                        Log.Logger.Information("{0} => MailClient started with proxy: {1}:{2}", Login, client.ProxyClient.ProxyHost, client.ProxyClient.ProxyPort);
 
                         try
                         {
@@ -395,6 +425,15 @@ namespace maFileTool.Services
                     {
                         client.CheckCertificateRevocation = false;
 
+                        //Use Proxy For Email connection
+                        if (Convert.ToBoolean(Globals.Settings.UseProxyForEmailClient.ToLower()))
+                            if (this.Proxy != "Default")
+                                if (ProxyManager.ConvertProxy(this.Proxy) is WebProxy webProxy)
+                                    if (ProxyManager.MailProxyClient(webProxy) is IProxyClient proxyClient)
+                                        client.ProxyClient = proxyClient;
+
+                        Log.Logger.Information("{0} => MailClient started with proxy: {1}:{2}", Login, client.ProxyClient.ProxyHost, client.ProxyClient.ProxyPort);
+
                         try
                         {
                             client.Connect(host, port, Convert.ToBoolean(Globals.Settings.UseSSL.ToLower()), cancellationToken);
@@ -442,6 +481,15 @@ namespace maFileTool.Services
                     using (var client = new Pop3Client())
                     {
                         client.CheckCertificateRevocation = false;
+
+                        //Use Proxy For Email connection
+                        if (Convert.ToBoolean(Globals.Settings.UseProxyForEmailClient.ToLower()))
+                            if (this.Proxy != "Default")
+                                if (ProxyManager.ConvertProxy(this.Proxy) is WebProxy webProxy)
+                                    if (ProxyManager.MailProxyClient(webProxy) is IProxyClient proxyClient)
+                                        client.ProxyClient = proxyClient;
+
+                        Log.Logger.Information("{0} => MailClient started with proxy: {1}:{2}", Login, client.ProxyClient.ProxyHost, client.ProxyClient.ProxyPort);
 
                         try
                         {
@@ -502,6 +550,15 @@ namespace maFileTool.Services
                     {
                         client.CheckCertificateRevocation = false;
 
+                        //Use Proxy For Email connection
+                        if (Convert.ToBoolean(Globals.Settings.UseProxyForEmailClient.ToLower()))
+                            if (this.Proxy != "Default")
+                                if (ProxyManager.ConvertProxy(this.Proxy) is WebProxy webProxy)
+                                    if (ProxyManager.MailProxyClient(webProxy) is IProxyClient proxyClient)
+                                        client.ProxyClient = proxyClient;
+
+                        Log.Logger.Information("{0} => MailClient started with proxy: {1}:{2}", Login, client.ProxyClient.ProxyHost, client.ProxyClient.ProxyPort);
+
                         try
                         {
                             client.Connect(host, port, Convert.ToBoolean(Globals.Settings.UseSSL.ToLower()), cancellationToken);
@@ -555,6 +612,15 @@ namespace maFileTool.Services
                     using (var client = new Pop3Client())
                     {
                         client.CheckCertificateRevocation = false;
+
+                        //Use Proxy For Email connection
+                        if (Convert.ToBoolean(Globals.Settings.UseProxyForEmailClient.ToLower()))
+                            if (this.Proxy != "Default")
+                                if (ProxyManager.ConvertProxy(this.Proxy) is WebProxy webProxy)
+                                    if (ProxyManager.MailProxyClient(webProxy) is IProxyClient proxyClient)
+                                        client.ProxyClient = proxyClient;
+
+                        Log.Logger.Information("{0} => MailClient started with proxy: {1}:{2}", Login, client.ProxyClient.ProxyHost, client.ProxyClient.ProxyPort);
 
                         try
                         {
