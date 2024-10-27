@@ -27,7 +27,14 @@ namespace maFileTool
         static async Task Main(string[] args)
         {
             //Инициализация
-            await Initialization();
+            bool ready = await Initialization();
+
+            if (!ready)
+            {
+                Log.Logger.Information("Some errors occurred. Press any key to exit.");
+                Console.ReadKey();
+                return;
+            }
 
             // Настройка DI контейнера
             ServiceProvider = RegisterServicesAsync();
@@ -84,15 +91,26 @@ namespace maFileTool
                         // Если все задачи завершены, выведем информацию об этом
                         if (runningTasks.IsEmpty)
                         {
-                            Log.Logger.Information("Все задачи остановлены.");
+                            Log.Logger.Information("All tasks have been completed.");
                         }
                         //else
-                            //Log.Logger.Warning("Runned Tasks => {0}", runningTasks.Count);
+                        //Log.Logger.Warning("Runned Tasks => {0}", runningTasks.Count);
+                    }
+                }
+                else if (t.IsCanceled)
+                {
+                    // Удаляем задачу из словаря, если она завершена и новые не запускаются
+                    runningTasks.TryRemove(taskId, out _);
+
+                    // Если все задачи завершены, выведем информацию об этом
+                    if (runningTasks.IsEmpty)
+                    {
+                        Log.Logger.Information("All tasks have been canceled.");
                     }
                 }
                 else
                 {
-                    Log.Logger.Error("{0} => Ошибка! {1}", login, t.Exception);
+                    Log.Logger.Error("{0} => Error! {1}", login, t.Exception);
                 }
             });
         }
@@ -102,7 +120,7 @@ namespace maFileTool
             // Перехватываем Ctrl+C для плавной остановки
             Console.CancelKeyPress += (sender, e) =>
             {
-                Log.Logger.Warning("Сочетание Ctrl+C нажато. Плавное завершение работы приложения.");
+                Log.Logger.Warning("The combination Ctrl+C is pressed. Smooth shutdown of the application.");
                 e.Cancel = true; // Отменяет стандартное завершение по Ctrl+C
                 shouldStop = true; // Запускает плавную остановку
             };
@@ -117,8 +135,8 @@ namespace maFileTool
                     // Проверка на сочетание Ctrl+Q
                     if (key.Key == ConsoleKey.Q && key.Modifiers.HasFlag(ConsoleModifiers.Control))
                     {
-                        Console.WriteLine("Сочетание Ctrl+Q нажато. Завершение работы приложения.");
-                        cancellationTokenSource.Cancel(); // Запускает плавную остановку
+                        Console.WriteLine("The combination Ctrl+Q is pressed. Shutting down the application.");
+                        cancellationTokenSource.Cancel(); // Запускает остановку
                         break;
                     }
                 }
@@ -172,7 +190,7 @@ namespace maFileTool
             }
         }
 
-        private static async Task Initialization()
+        private static async Task<bool> Initialization()
         {
             // Конфигурация Serilog для логирования
             Log.Logger = new LoggerConfiguration().MinimumLevel.Debug()
@@ -185,7 +203,16 @@ namespace maFileTool
                 .CreateLogger();
 
 
-            Log.Logger.Warning("Powered by Baby Yoda.");
+            Log.Logger.Warning("Powered by riddler2077.");
+
+            Log.Logger.Warning("The software is provided \"as is\", without warranty of any kind, express or implied.");
+
+            Log.Logger.Warning("If you want to thank the author, you can use the following crypto addresses:");
+
+            Log.Logger.Warning("{0}: {1}", "BTC", "bc1qxmarry35eet0uqs24dr3g9qz6zjz34k9v08uey");
+            Log.Logger.Warning("{0}: {1}", "ETH", "0x55E2af03A515428b6788E43413F565Af0D246696");
+            Log.Logger.Warning("{0}: {1}", "TRX", "TQiJDA19y696hMFcegjmaKMQ5XKZ6C7MJs");
+            Log.Logger.Warning("{0}: {1}", "USDT (TRC20)", "TQiJDA19y696hMFcegjmaKMQ5XKZ6C7MJs");
 
             Log.Logger.Information("Initialization started.");
 
@@ -213,22 +240,70 @@ namespace maFileTool
             }
             else
             {
-                Log.Logger.Error("Settings file not found!");
-                return;
+                Log.Logger.Fatal("Settings file not found!");
+                return false;
             }
 
-            if ((await Excel.ReadAccountsFromExcel(Globals.ExcelFilePath))
-                .Where(a => a.Email is not null)
-                .Where(a => a.RevocationCode is null)
-                .ToList() is List<Account> accounts)
+            switch (Globals.Settings.Mode.ToLower()) 
             {
-                Globals.Accounts = accounts;
-                Log.Logger.Information("Excel file loaded.");
-            }
-            else
-            {
-                Log.Logger.Error("Excel file not found!");
-                return;
+                case "txt":
+
+                    if (File.Exists(Globals.TxtFilePath) && new FileInfo(Globals.TxtFilePath).Length > 0)
+                    {
+                        if ((await Txt.ReadAccountsFromTxt(Globals.TxtFilePath))
+                            .Where(a => !string.IsNullOrEmpty(a.Email))
+                            .Where(a => a.RevocationCode is "")
+                            .ToList() is List<Account> txtAccounts)
+                        {
+                            Globals.Accounts = txtAccounts;
+                            Log.Logger.Information("Txt file loaded.");
+                        }
+                        else
+                        {
+                            Log.Logger.Fatal("Txt file incorrect!");
+                            return false;
+                        }
+                    }
+                    else if (File.Exists(Globals.TxtFilePath) && new FileInfo(Globals.TxtFilePath).Length == 0) 
+                    {
+                        Log.Logger.Fatal("Txt file is empty!");
+                        return false;
+                    }
+                    else if (!File.Exists(Globals.TxtFilePath))
+                    {
+                        Log.Logger.Fatal("Txt file not found!");
+                        return false;
+                    }
+
+                    break;
+                case "excel":
+
+                    if (File.Exists(Globals.ExcelFilePath))
+                    {
+                        if ((await Excel.ReadAccountsFromExcel(Globals.ExcelFilePath))
+                        .Where(a => a.Email is not null)
+                        .Where(a => a.RevocationCode is null)
+                        .ToList() is List<Account> excelAccounts)
+                        {
+                            Globals.Accounts = excelAccounts;
+                            Log.Logger.Information("Excel file loaded.");
+                        }
+                        else
+                        {
+                            Log.Logger.Fatal("Excel file incorrect!");
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        Log.Logger.Fatal("Excel file not found!");
+                        return false;
+                    }
+
+                    break;
+                default:
+                    Log.Logger.Fatal("Please specify Mode in the settings file!");
+                    return false;
             }
 
             if (File.Exists(Globals.ProxyPath) && new FileInfo(Globals.ProxyPath).Length > 0)
@@ -237,6 +312,8 @@ namespace maFileTool
                     Globals.Proxies = proxies;
                     Log.Logger.Information("Loaded - {0} proxies.", Globals.Proxies.Count);
                 }
+
+            return true;
         }
 
         private static async Task Run(string login)
@@ -244,7 +321,11 @@ namespace maFileTool
             if (Program.ServiceProvider!.GetKeyedService<IMaFileService>(login) is IMaFileService maFileService)
             {
                 await maFileService.GetIP(cancellationTokenSource.Token);
+                if (cancellationTokenSource.IsCancellationRequested)
+                    return;
                 await maFileService.Authorization(cancellationTokenSource.Token);
+                if (cancellationTokenSource.IsCancellationRequested)
+                    return;
                 await maFileService.LinkAuthenticator(cancellationTokenSource.Token);
             }
         }

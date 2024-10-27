@@ -95,6 +95,7 @@ namespace maFileTool.Utilities
                 try
                 {
                     await File.WriteAllLinesAsync(Globals.ProxyPath, Globals.Proxies, System.Text.Encoding.UTF8);
+                    Log.Logger.Warning("Proxy deleted! => {0}", proxy);
                 }
                 catch (Exception ex)
                 {
@@ -105,13 +106,6 @@ namespace maFileTool.Utilities
                     semaphoreSlim.Release();
                 }
             }
-        }
-
-        private void LineChanger(string newText, string fileName, int lineToEdit)
-        {
-            string[] array = File.ReadAllLines(fileName);
-            array[lineToEdit - 1] = newText;
-            File.WriteAllLines(fileName, array);
         }
 
         //string protocol = Regex.Match(this.Proxy, "^[a-zA-Z0-9]+(?=://)").Value;

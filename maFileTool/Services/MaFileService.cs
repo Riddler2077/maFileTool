@@ -28,7 +28,7 @@ namespace maFileTool.Services
         IEnumerable<TimeSpan> retryTimes,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string sourceFilePath = "",
-        [CallerLineNumber] int sourceLineNumber = 0) => Policy.Handle<Exception>().WaitAndRetryAsync(retryTimes, (ex, timespan, retryAttempt, context) =>
+        [CallerLineNumber] int sourceLineNumber = 0) => Policy.Handle<HttpRequestException>().WaitAndRetryAsync(retryTimes, (ex, timespan, retryAttempt, context) =>
         {
             if (context.ContainsKey("Login"))
             {
@@ -98,7 +98,7 @@ namespace maFileTool.Services
             }
             catch (HttpRequestException ex)
             {
-                Log.Logger.Error("{0} => Ошибка при загрузке страницы : {1}", Login, ex.Message);
+                Log.Logger.Error("{0} => Error loading page: {1}", Login, ex.Message);
 
                 if (Convert.ToBoolean(Globals.Settings.UseProxyListAutoClean.ToLower()))
                     await ProxyManager.RemoveProxy(this.Proxy);
@@ -281,9 +281,20 @@ namespace maFileTool.Services
 
                     await SaveMaFile(account);
 
-                    Log.Logger.Warning("{0}:{1}:{2}:{3}:{4}:{5}", Login, Password, Email, EmailPassword, "Email", RevocationCode);
+                    Log.Logger.Warning("{0} => Mobile authenticator successfully linked. Please write down your revocation code: {1}", Login, RevocationCode);
 
-                    await SaveToExcel();
+                    switch (Globals.Settings.Mode.ToLower())
+                    {
+                        case "txt":
+                            await SaveToTxt();
+                            break;
+                        case "excel":
+                            await SaveToExcel();
+                            break;
+                        default:
+                            Log.Logger.Fatal("How it possible?! 0_0");
+                            return;
+                    }
                 }
             }
 
@@ -291,6 +302,29 @@ namespace maFileTool.Services
             {
                 string filename = Path.Combine(Globals.MaFilesFolder, String.Format("{0}.maFile", account.Session?.SteamID));
                 await Json.Document.WriteJsonAsync(account, filename);
+            }
+
+            async Task SaveToTxt() 
+            {
+                if (Globals.Accounts.FirstOrDefault(a => a.Login == this.Login) is Account account)
+                {
+                    account.Phone = this.Phone;
+                    account.RevocationCode = this.RevocationCode;
+                    await semaphoreSlim.WaitAsync(); // Асинхронное ожидание
+                    try
+                    {
+                        string text = String.Format("{0}:{1}:{2}:{3}:{4}:{5}", account.Login, account.Password, account.Email, account.EmailPassword, account.Phone, account.RevocationCode);
+                        await Txt.LineChanger(text, Globals.TxtFilePath, Int32.Parse(account.Id));
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Logger.Error("{0} => Ошибка сохранения: {1}", Login, ex.Message);
+                    }
+                    finally
+                    {
+                        semaphoreSlim.Release(); // Освобождаем семафор после выполнения
+                    }
+                }
             }
 
             async Task SaveToExcel()
@@ -721,7 +755,7 @@ namespace maFileTool.Services
                 }
                 catch (HttpRequestException ex)
                 {
-                    Log.Logger.Error("{0} => Ошибка при загрузке страницы : {1}", Email, ex.Message);
+                    Log.Logger.Error("{0} => Error loading page: {1}", Email, ex.Message);
                     return null;
                 }
             }

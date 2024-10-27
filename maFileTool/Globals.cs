@@ -10,6 +10,8 @@ namespace maFileTool
 
         public static string ExcelFilePath = Path.Combine(Program.ExecutablePath, "Steam.xlsx");
 
+        public static string TxtFilePath = Path.Combine(Program.ExecutablePath, "Steam.txt");
+
         public static string MaFilesFolder = Path.Combine(Program.ExecutablePath, "maFiles");
 
         public static Settings Settings = new Settings();
