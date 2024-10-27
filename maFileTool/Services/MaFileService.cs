@@ -100,7 +100,8 @@ namespace maFileTool.Services
             {
                 Log.Logger.Error("{0} => Ошибка при загрузке страницы : {1}", Login, ex.Message);
 
-                //Globals.Proxies.Remove(this.Proxy);
+                if (Convert.ToBoolean(Globals.Settings.UseProxyListAutoClean.ToLower()))
+                    await ProxyManager.RemoveProxy(this.Proxy);
 
                 var httpClientFactory = Program.ServiceProvider!.GetRequiredService<IHttpClientFactory>();
                 var randomProxy = Globals.Proxies.Count >= 1 ? Globals.Proxies[new Random().Next(Globals.Proxies.Count)] : "Default";

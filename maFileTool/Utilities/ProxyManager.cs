@@ -1,5 +1,6 @@
 ﻿using MailKit.Net.Proxy;
 using Serilog;
+using System.Diagnostics;
 using System.Net;
 using System.Text.RegularExpressions;
 
@@ -7,6 +8,8 @@ namespace maFileTool.Utilities
 {
     public class ProxyManager
     {
+        private static readonly SemaphoreSlim semaphoreSlim = new SemaphoreSlim(1, 1);
+
         public static async Task<List<string>?> LoadProxiesAsync(string filePath)
         {
             if (!File.Exists(filePath))
@@ -80,6 +83,35 @@ namespace maFileTool.Utilities
             }
 
             return null;
+        }
+
+        public static async Task RemoveProxy(string proxy) 
+        {
+            Globals.Proxies.Remove(proxy);
+
+            if (File.Exists(Globals.ProxyPath)) 
+            {
+                await semaphoreSlim.WaitAsync();
+                try
+                {
+                    await File.WriteAllLinesAsync(Globals.ProxyPath, Globals.Proxies, System.Text.Encoding.UTF8);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(ex);
+                }
+                finally 
+                {
+                    semaphoreSlim.Release();
+                }
+            }
+        }
+
+        private void LineChanger(string newText, string fileName, int lineToEdit)
+        {
+            string[] array = File.ReadAllLines(fileName);
+            array[lineToEdit - 1] = newText;
+            File.WriteAllLines(fileName, array);
         }
 
         //string protocol = Regex.Match(this.Proxy, "^[a-zA-Z0-9]+(?=://)").Value;
